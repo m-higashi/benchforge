@@ -1,0 +1,503 @@
+:root{
+  /* ── 配色は必ずこの変数を経由する（直値を書くとテーマを増やしたときに破綻する）── */
+  --bg:#0e1726; --card:#16223a; --ink:#e6edf6; --muted:#b3c4d9;
+  --accent:#4dd0e1; --accent2:#b388ff; --line:#27406b; --good:#37d39b;
+  --surface-2:#111c30; --surface-3:#0b1424; --surface-4:#16314f;
+  --ink-2:#cfe3ff; --accent-ink:#8be9f5; --accent-strong:#3CB6BF;
+  --ok:#6fc79a; --ok-ink:#bfe3cf; --ok-line:#57b894; --ok-bg:#0f1a14;
+  --warn:#e0a050; --warn-ink:#ffcf8f; --bad:#ff8a8a; --bad-bg:#3a1d2c;
+  --page-from:#0b1220; --page-to:#0e1726; --on-accent:#fff;
+  --btn-bg:#16314f; --btn-ink:#ffffff; --on-badge:#06231a;
+}
+/* OS がライト設定ならライト配色にする（既定の追従） */
+@media (prefers-color-scheme: light){
+  :root{
+    --bg:#f7f9fc; --card:#ffffff; --ink:#16202e; --muted:#54637a;
+    --accent:#0a6570; --accent2:#6b3fd4; --line:#c9d5e5; --good:#1a7f52;
+    --surface-2:#eef3fa; --surface-3:#e7edf6; --surface-4:#dce6f3;
+    --ink-2:#22304a; --accent-ink:#075059; --accent-strong:#0a6570;
+    --ok:#14663f; --ok-ink:#155e3d; --ok-line:#14663f; --ok-bg:#e6f5ec;
+    --warn:#8a5300; --warn-ink:#6b4100; --bad:#b3261e; --bad-bg:#fdeceb;
+    --page-from:#eef2f8; --page-to:#f7f9fc; --on-accent:#fff;
+    --btn-bg:#d6e6f5; --btn-ink:#0d2436; --on-badge:#ffffff;
+  }
+}
+/* 画面上の切替は OS 設定より優先する */
+:root[data-theme="light"]{
+  --bg:#f7f9fc; --card:#ffffff; --ink:#16202e; --muted:#54637a;
+  --accent:#0a6570; --accent2:#6b3fd4; --line:#c9d5e5; --good:#1a7f52;
+  --surface-2:#eef3fa; --surface-3:#e7edf6; --surface-4:#dce6f3;
+  --ink-2:#22304a; --accent-ink:#075059; --accent-strong:#0a6570;
+  --ok:#14663f; --ok-ink:#155e3d; --ok-line:#14663f; --ok-bg:#e6f5ec;
+  --warn:#8a5300; --warn-ink:#6b4100; --bad:#b3261e; --bad-bg:#fdeceb;
+  --page-from:#eef2f8; --page-to:#f7f9fc; --on-accent:#fff;
+  --btn-bg:#d6e6f5; --btn-ink:#0d2436; --on-badge:#ffffff;
+}
+:root[data-theme="dark"]{
+  --bg:#0e1726; --card:#16223a; --ink:#e6edf6; --muted:#b3c4d9;
+  --accent:#4dd0e1; --accent2:#b388ff; --line:#27406b; --good:#37d39b;
+  --surface-2:#111c30; --surface-3:#0b1424; --surface-4:#16314f;
+  --ink-2:#cfe3ff; --accent-ink:#8be9f5; --accent-strong:#3CB6BF;
+  --ok:#6fc79a; --ok-ink:#bfe3cf; --ok-line:#57b894; --ok-bg:#0f1a14;
+  --warn:#e0a050; --warn-ink:#ffcf8f; --bad:#ff8a8a; --bad-bg:#3a1d2c;
+  --page-from:#0b1220; --page-to:#0e1726; --on-accent:#fff;
+  --btn-bg:#16314f; --btn-ink:#ffffff; --on-badge:#06231a;
+}
+*{box-sizing:border-box}
+/* ★2026-10-06: スクロールバーの有無でページ間のレイアウトが横にずれていた。
+   常に縦スクロールバーの幅ぶんの余白を確保して、どの画面でも中身の位置を揃える。 */
+html{background:var(--bg); scrollbar-gutter:stable}
+/* 中でスクロールする箱も、中身が増えてバーが出た瞬間に横へずれないように（2026-10-16） */
+.streambox,.substream,.preview,.rawcell,.nt-models,.qv-modal,#ev-configs,#sb-configs{scrollbar-gutter:stable}
+@supports not (scrollbar-gutter: stable){
+  html{overflow-y:scroll}          /* 古いブラウザ向けの保険（常にバーを出す） */
+}
+body{margin:0;background:linear-gradient(160deg,var(--page-from),var(--page-to));color:var(--ink);
+  font-family:"Hiragino Sans","Noto Sans JP",system-ui,sans-serif;line-height:1.6}
+.wrap{max-width:1100px;margin:0 auto;padding:28px 20px 64px}
+h1{font-size:1.5rem;margin:0 0 2px;background:linear-gradient(90deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--muted);margin:0 0 18px;font-size:.86rem}
+.note{color:var(--muted);font-size:.84rem;margin:6px 0 10px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px}
+.tab{background:var(--surface-4);color:var(--muted);border:1px solid var(--line);border-radius:999px;
+  padding:6px 16px;font-size:.85rem;cursor:pointer}
+.tab.active{color:var(--ink);border-color:var(--accent);background:var(--surface-4)}
+.pane{display:none}
+.pane.active{display:block}
+table{width:100%;border-collapse:collapse;font-size:.84rem}
+/* ★列が多いので余白を詰める（2026-08-25）。右端の run_id が横スクロールなしで見えることを優先。
+   nowrap は維持する（数値やIDが折り返すと読み違えるため）。 */
+th,td{text-align:left;padding:4px 7px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--muted);font-weight:600;cursor:pointer;user-select:none}
+th:hover{color:var(--ink)}
+td.num,th.num{text-align:right}
+tr:hover td{background:var(--surface-2)}
+.acc{font-weight:700;color:var(--good)}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--accent)}
+.pill{display:inline-block;background:var(--surface-3);border:1px solid var(--line);border-radius:6px;
+  padding:0 6px;color:var(--muted);font-size:.78rem;margin-right:4px}
+.empty{color:var(--muted);padding:24px 0}
+.disclaimer{color:var(--muted);font-size:.78rem;border-top:1px solid var(--line);
+  margin-top:32px;padding-top:14px}
+
+/* ---- プランエディタ ---- */
+.ed-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.ed-grid{grid-template-columns:1fr}}
+.cardbox{background:var(--card);border:1px solid var(--line);border-radius:10px;
+  padding:14px 16px;margin:0 0 14px}
+.cardbox h3{margin:0 0 10px;font-size:.98rem;color:var(--accent)}
+.ed-left label{display:block;margin:6px 0;font-size:.82rem;color:var(--muted)}
+input,select,textarea{background:var(--surface-3);border:1px solid var(--line);border-radius:6px;
+  color:var(--ink);padding:5px 8px;font-size:.85rem;width:100%;margin-top:3px}
+select{width:auto;min-width:120px}
+/* ★チェックボックス/ラジオは上の width:100% の対象外にする。
+   これが無いとチップ内のチェックボックスが横幅いっぱいに伸び、ラベルの箱が
+   膨張して文字が外へはみ出す（実効独立票タブで発覚・特性評価タブ等も同症状）。 */
+input[type=checkbox],input[type=radio]{width:auto;margin-top:0;flex:none}
+/* ★ファイル選択とチェックボックスは、指定しないと OS 既定の見た目のままになる。
+   暗い配色のとき「ファイルの選択」ボタンだけ白背景・黒文字で浮き、さらに隣の
+   「ファイルが選択されていません」が幅で切られて「ファ…せん」と読めなくなっていた
+   （Windows 実機検証 2026-08-10・問題の管理に3箇所、個別実行に1箇所）。 */
+/* ⚠ width:auto だけでは足りない。ブラウザ既定の幅が狭いため
+   「ファイルが選択されていません」が途中省略され（"ファ…せん" / "No fil…ected."）意味が読めない。
+   ★実機の画面を見て初めて分かった＝CSS は値でなく描画結果を確認すること。 */
+input[type=file]{width:auto;min-width:min(100%,26em);max-width:100%;
+  background:var(--surface-3);color:var(--ink);padding:4px 6px;font-size:.8rem}
+input[type=file]::file-selector-button{background:var(--surface-4);color:var(--ink);
+  border:1px solid var(--line);border-radius:6px;padding:4px 10px;margin-right:8px;
+  font-size:.8rem;cursor:pointer;font-family:inherit}
+input[type=file]::file-selector-button:hover{border-color:var(--accent)}
+/* 配色に追従させる（未指定だと OS 既定の白い四角が暗い配色で目立つ） */
+input[type=checkbox],input[type=radio]{accent-color:var(--accent-strong)}
+button{background:var(--surface-4);color:var(--ink);border:1px solid var(--line);border-radius:7px;
+  padding:6px 14px;font-size:.84rem;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--btn-bg);border-color:var(--accent);color:var(--btn-ink)}
+button.mini{padding:2px 9px;font-size:.78rem;margin-left:8px}
+button.x{padding:1px 8px;font-size:.78rem;background:var(--bad-bg)}
+.cfgbox{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:8px 0;background:var(--surface-2)}
+.stagerow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:5px 0;
+  padding:5px;border-bottom:1px dashed var(--line)}
+.stagerow .lbl{font-size:.72rem;color:var(--muted)}
+.stagedesc{font-size:.74rem;color:var(--muted);margin:0 0 6px 22px;font-style:italic}
+
+/* ---- モデル実演 ---- */
+.demo-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.demo-grid{grid-template-columns:1fr}}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.thumb{width:64px;height:64px;object-fit:cover;border:1px solid var(--line);border-radius:6px}
+.arch{padding:4px 0}
+.archrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.archrow .node{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;
+  font-size:.84rem;display:flex;flex-direction:column;gap:2px;min-width:90px}
+/* ★2026-10-06 修正: ライトモードで「処理の流れ」のモデル名が白のまま読めなかった。
+   --on-accent は**背景が accent 色のとき**の文字色（全テーマ #fff）。ここは背景が
+   surface-2（ライトでは明るい色）のままなので通常の ink を使う。
+   実測コントラスト比: 白×surface-2 = 1.11（不可）→ ink×surface-2 = 14.71 */
+.archrow .node.accent{border-color:var(--accent2);color:var(--ink)}
+.archrow .node small{color:var(--muted);font-size:.7rem}
+.archrow .arrow{color:var(--accent);font-size:1.1rem;transition:opacity .2s}
+
+/* ── 実演アーキ図: 観客向け演出（推論中ノードを光らせる）── */
+.archrow .node{position:relative;transition:transform .25s ease, box-shadow .25s ease, border-color .25s ease}
+.archrow .node.active{
+  border-color:var(--accent); color:var(--ink);   /* 同上（背景は変えていない） */
+  transform:translateY(-2px) scale(1.07); z-index:2;
+  animation:nodePulse 1.1s ease-in-out infinite;
+}
+@keyframes nodePulse{
+  0%,100%{box-shadow:0 0 6px rgba(77,208,225,.55), 0 0 16px rgba(77,208,225,.28)}
+  50%{box-shadow:0 0 16px rgba(179,136,255,.95), 0 0 34px rgba(179,136,255,.55)}
+}
+/* 点滅する「推論中」バッジ */
+.archrow .node.active::after{
+  content:"● 推論中"; position:absolute; top:-10px; right:-6px;
+  background:var(--accent2); color:var(--on-badge); font-size:.62rem; font-weight:700;
+  padding:1px 7px; border-radius:999px; white-space:nowrap;
+  animation:badgeBlink .9s step-start infinite;
+}
+@keyframes badgeBlink{50%{opacity:.2}}
+/* 回転するグラデーションのリング */
+.archrow .node.active::before{
+  content:""; position:absolute; inset:-3px; border-radius:11px; padding:2px;
+  background:conic-gradient(from 0deg, transparent 0deg, var(--accent) 90deg, var(--accent2) 180deg, transparent 300deg);
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor; mask-composite:exclude;
+  animation:ringSpin 1.4s linear infinite; pointer-events:none;
+}
+@keyframes ringSpin{to{transform:rotate(360deg)}}
+/* 完了ノード（✓・落ち着いた緑） */
+.archrow .node.done{border-color:var(--good); opacity:.8}
+.archrow .node.done::after{
+  content:"✓"; position:absolute; top:-8px; right:-7px;
+  width:16px; height:16px; line-height:16px; text-align:center; border-radius:50%;
+  background:var(--good); color:var(--on-badge); font-size:.66rem; font-weight:700;
+}
+/* active 直前の矢印を流す */
+.archrow .arrow.flow{color:var(--accent2); animation:arrowFlow .7s ease-in-out infinite}
+@keyframes arrowFlow{0%,100%{opacity:.35;transform:translateX(-2px)}50%{opacity:1;transform:translateX(3px)}}
+/* 最終解答の登場演出 */
+.answerbox.reveal{animation:answerPop .6s cubic-bezier(.2,1.5,.4,1)}
+@keyframes answerPop{0%{transform:scale(.82);opacity:0}60%{transform:scale(1.13)}100%{transform:scale(1);opacity:1}}
+.streambox{background:var(--surface-3);border:1px solid var(--line);border-radius:8px;padding:10px;
+  white-space:pre-wrap;font-size:.82rem;line-height:1.55;color:var(--ink-2);max-height:300px;overflow:auto;min-height:48px}
+.answerbox{font-size:1.05rem;margin:0 0 8px;color:var(--good)}
+.goldbox{font-size:.9rem;margin:0 0 4px;color:var(--accent)}
+/* まとめ(Markdown描画) */
+.md h2{font-size:1.1rem;color:var(--accent);border-bottom:1px solid var(--line);padding-bottom:4px;margin:18px 0 8px}
+.md h3{font-size:.98rem;color:var(--accent2);margin:14px 0 6px}
+.md p{margin:6px 0;font-size:.9rem;line-height:1.7}
+.md li{font-size:.9rem;line-height:1.6}
+/* ★同上: まとめ・提案の太字。ライトでは白が背景に溶ける */
+.md b{color:var(--ink)}
+.md hr{border:0;border-top:1px solid var(--line);margin:14px 0}
+.mdt{border-collapse:collapse;margin:8px 0;font-size:.84rem;width:100%}
+.mdt th,.mdt td{border:1px solid var(--line);padding:5px 9px;text-align:left}
+.mdt th{color:var(--muted);background:var(--surface-2)}
+/* ペア比較 行ハイライト */
+.vw-a td{background:rgba(55,211,155,.10)} /* A勝 */
+.vw-b td{background:rgba(255,138,138,.10)} /* B勝 */
+.vw-n td{background:rgba(159,178,204,.06)} /* 両誤 */
+.stageblock{border:1px solid var(--line);border-radius:8px;margin:0 0 10px;overflow:hidden}
+.stagehdr{background:var(--surface-2);padding:6px 10px;font-size:.82rem;color:var(--accent2);border-bottom:1px solid var(--line)}
+.substream{padding:8px 10px;white-space:pre-wrap;font-size:.8rem;line-height:1.5;max-height:240px;overflow:auto}
+.substream.think{background:var(--surface-3);color:var(--muted);border-bottom:1px dashed var(--line);font-style:italic}
+.substream.content{background:var(--surface-3);color:var(--ink-2)}
+.substream.meta{background:var(--surface-2);color:var(--muted);font-size:.78rem;padding:5px 10px}
+.promptbox{border-bottom:1px solid var(--line)}
+.promptbox>summary{cursor:pointer;padding:6px 10px;font-size:.78rem;color:var(--accent-ink);background:var(--surface-3);user-select:none}
+.promptbox .substream.prompt{background:var(--surface-3);color:var(--ink-2);border-left:3px solid var(--accent)}
+.substream.knowledge{background:var(--ok-bg);color:var(--ok-ink);border-left:3px solid var(--ok-line);border-bottom:1px solid var(--line)}
+textarea{resize:vertical;line-height:1.5}
+.ed-left code,.note code{background:var(--surface-3);border:1px solid var(--line);border-radius:4px;
+  padding:0 4px;color:var(--accent);font-size:.78rem}
+.ed-paramhelp{background:var(--surface-3);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:6px 0 12px}
+.ed-paramhelp>summary{cursor:pointer;user-select:none;list-style-position:inside}
+.ed-paramhelp[open]>summary{margin-bottom:6px}
+.ed-paramhelp ul{margin:6px 0 4px;padding-left:1.2em}
+.ed-paramhelp li{margin:3px 0;line-height:1.5}
+.preview{background:var(--surface-3);border:1px solid var(--line);border-radius:8px;padding:12px;
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;white-space:pre-wrap;
+  max-height:70vh;overflow:auto;color:var(--ink-2)}
+.status{margin-left:10px;font-size:.82rem;color:var(--good)}
+.savedrow{display:flex;justify-content:space-between;gap:8px;padding:5px 0;
+  border-bottom:1px solid var(--line);font-size:.84rem}
+.savedrow a{cursor:pointer}
+
+/* ---- 結果ブラウザ 詳細（クリック行の真下にアコーディオン挿入） ---- */
+tbody tr.clickable{cursor:pointer}
+tbody tr.clickable.open td{background:var(--surface-4);border-bottom:1px solid var(--accent)}
+.detailrow td{padding:0;background:var(--surface-2)}
+.detailbox{padding:12px 14px;border-left:3px solid var(--accent)}
+.detail-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px}
+.muted{color:var(--muted);font-weight:400}
+.ok{color:var(--good)} .ng{color:var(--bad)} .na{color:var(--muted)}
+.qrow{cursor:pointer}
+.rawcell{background:var(--surface-3);border:1px solid var(--line);border-radius:6px;padding:10px;
+  margin:4px 0 10px;white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;
+  font-size:.8rem;color:var(--ink-2);max-height:340px;overflow:auto}
+/* 夜間ラン設定タブ */
+.nt-models{display:flex;flex-wrap:wrap;gap:4px 14px;margin:4px 0 8px;max-height:160px;overflow:auto}
+.nt-mdl{font-size:.82rem;color:var(--ink);white-space:nowrap}
+.nt-days{display:flex;gap:10px;margin:6px 0}
+.nt-day{font-size:.85rem;color:var(--ink)}
+/* 横長テーブル（アンサンブル内訳の多列）をカード内に収め、背景からはみ出さない */
+.tscroll{overflow-x:auto;max-width:100%}
+.tscroll .mdt, .tscroll table{margin:8px 0}
+
+/* --- 特性評価タブ（2026-07-18追加） --- */
+.chgrid{display:flex;flex-wrap:wrap;gap:.35em .5em;margin:.5em 0}
+.chgrid label{display:inline-flex;align-items:center;gap:.35em;font-size:.82rem;white-space:nowrap;
+  background:rgba(127,127,127,.08);border:1px solid rgba(127,127,127,.25);
+  border-radius:7px;padding:.2em .5em;cursor:pointer}
+.chgrid label.on{border-color:var(--accent-strong);background:rgba(60,182,191,.12)}
+.chgrid .acc{color:var(--accent-strong);font-variant-numeric:tabular-nums}
+/* ★リンク(a.ghost)にもボタンと同じ形を与える（2026-08-25）。
+   以前は button.ghost だけに指定していたため、「いまのタグをCSVで取得」等の
+   リンクだけ枠も高さも違って見え、行がガタついていた。 */
+button.ghost, a.ghost, label.ghost{background:transparent;border:1px solid rgba(127,127,127,.4);color:inherit;
+  border-radius:7px;padding:.3em .7em;cursor:pointer;font-size:.82rem;
+  text-decoration:none;display:inline-flex;align-items:center;justify-content:center;
+  line-height:1.4;white-space:nowrap}
+button.ghost:hover, a.ghost:hover, label.ghost:hover{border-color:var(--accent-strong)}
+.chip{display:inline-block;font-size:.72rem;font-weight:700;padding:.1em .5em;border-radius:999px;
+  background:rgba(60,182,191,.15);color:var(--accent-strong);margin:.1em}
+#ch-out table{margin-top:.5em}
+#ch-out h3{font-size:1rem;margin:1.1em 0 .3em}
+
+/* --- はじめに(home)タブ・2026-07-18 --- */
+.home-hero{background:rgba(60,182,191,.08);border:1px solid rgba(60,182,191,.25);
+  border-radius:12px;padding:18px 22px;margin-bottom:1.4em}
+.home-hero h2{margin:0 0 .4em}
+.home-hero p{margin:0;line-height:1.75}
+.home-steps{line-height:1.8;padding-left:1.3em;margin:.4em 0 1.4em}
+.home-steps li{margin:.3em 0}
+.home-terms{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin:.5em 0}
+.term-card{background:rgba(127,127,127,.06);border:1px solid rgba(127,127,127,.2);
+  border-radius:10px;padding:12px 14px}
+/* ★見出しだけを block にする（直下の b のみ）。以前は .term-card b だったため
+   **本文中の強調 <b> も block 化して文の途中で改行が入っていた**（2026-07-29 修正）。 */
+.term-card>b{display:block;color:var(--accent-strong);margin-bottom:.25em}
+.term-card span{font-size:.9rem;line-height:1.6;color:inherit;opacity:.85}
+.term-card span b{display:inline;color:inherit}      /* 本文中の強調は行を折らない */
+.term-card>b span{font-size:inherit;opacity:1}       /* 見出し内の span を本文サイズに縮めない */
+.term-card code{background:rgba(127,127,127,.18);border:1px solid rgba(127,127,127,.25);
+  border-radius:4px;padding:0 .35em;font-size:.85em;white-space:nowrap}
+.term-card .nm-ng{color:var(--bad)}
+.term-card .nm-ok{color:var(--ok)}
+/* タグ・問題グループ管理タブ */
+.mg-section{background:rgba(127,127,127,.05);border:1px solid rgba(127,127,127,.2);
+  border-radius:12px;padding:16px 18px;margin:1em 0}
+.mg-section h3{margin:0 0 .2em;font-size:1.05rem}
+.mg-section .mg-desc{font-size:.88rem;opacity:.8;margin:.1em 0 .8em;line-height:1.6}
+/* ★「問題の管理」の行を、1つの規則で統一する（2026-08-25 全面整理）。
+   それまでは指定が散らばり、文字サイズが .8 / .82 / .85rem / 未指定 の4種類混在、
+   さらにテキスト入力だけ margin-top:3px で沈んでいた。
+   ⇒ **この行の中の部品は、文字サイズ・高さ・角丸・余白をすべて同じ値にする**。 */
+.mg-row{display:flex;flex-wrap:wrap;gap:.5em .6em;align-items:center;margin:.55em 0;
+  row-gap:.5em;min-height:2.4em;font-size:.82rem}
+
+/* 項目名の列は固定幅（min-width だと項目名の長さで開始位置がずれる） */
+.mg-row .lbl{flex:0 0 5.5em;width:5.5em;color:var(--muted);font-size:.82rem}
+
+/* 入力・選択・ボタン・リンク・ファイル選択 — すべて同じ寸法に揃える */
+.mg-row input:not([type=checkbox]):not([type=radio]),
+.mg-row select, .mg-row button, .mg-row a.ghost, .mg-row label.ghost{
+  height:2.2em;box-sizing:border-box;font-size:.82rem;border-radius:7px;
+  margin-top:0;line-height:1.4;vertical-align:middle}
+.mg-row input:not([type=checkbox]):not([type=radio]):not([type=file]),
+.mg-row select{padding:.25em .6em}
+.mg-row button, .mg-row a.ghost, .mg-row label.ghost{padding:.25em .7em}
+
+/* ★ファイル選択は「ネイティブの入力欄」を使わない（2026-08-25 方式変更）。
+   input[type=file] は内部ボタンと「ファイルが選択されていません」の文字を
+   ブラウザが自前で描くため、CSS でいくら整えても環境ごとに高さがずれた
+   （実機で3回作り直して直らなかった）。
+   ⇒ **入力欄は隠し、見た目は通常のボタン(label)と文字(span)で作る**。
+      こうすると他のボタンと同じ部品になるので、原理的にずれない。 */
+.filepick{display:inline-flex;align-items:center;gap:.5em}
+.filepick input[type=file]{position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+  overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.filepick label.ghost{margin:0}
+.filepick .filename{color:var(--muted);font-size:.82rem;line-height:1.4;
+  max-width:14em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* キーボード操作でも「選ばれている」ことが分かるように */
+.filepick input[type=file]:focus-visible + .filename,
+.filepick input[type=file]:focus-visible ~ label.ghost{outline:2px solid var(--accent)}
+
+/* チェックボックスの説明文も同じ文字サイズ・同じ縦位置に */
+.mg-row label:not(.ghost){display:inline-flex;align-items:center;gap:.35em;white-space:nowrap;
+  font-size:.82rem;line-height:1.4}
+.mg-row input[type=checkbox]{margin:0}
+
+/* 手入力の欄は幅を揃える（9em/10em/11em がばらばらだった） */
+.mg-row .w-qid{width:9.5em}
+.mg-row .w-name{width:11em}
+
+/* --- 問題ビューア(モーダル)・2026-07-18 --- */
+.qv-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;
+  display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:2vh 2vw}
+.qv-box{background:var(--bg,var(--surface-3));color:inherit;border:1px solid rgba(127,127,127,.35);
+  border-radius:14px;max-width:1000px;width:100%;padding:22px 26px;position:relative;
+  box-shadow:0 12px 40px rgba(0,0,0,.5)}
+:root[data-theme="light"] .qv-box, body:not([data-theme="dark"]) .qv-box{background:var(--card)}
+.qv-close{position:absolute;top:10px;right:14px;background:transparent;border:0;
+  font-size:1.6rem;line-height:1;color:inherit;cursor:pointer;opacity:.7}
+.qv-close:hover{opacity:1}
+.qv-imgs{display:flex;flex-wrap:wrap;gap:10px;margin:.6em 0}
+.qv-imgs img{max-height:320px;max-width:100%;border:1px solid rgba(127,127,127,.3);border-radius:8px;
+  background:#000;cursor:zoom-in}
+.qv-imgs img.zoom{max-height:none;max-width:none;cursor:zoom-out;position:relative;z-index:2}
+.qv-stem{font-size:1.02rem;line-height:1.7;margin:.4em 0;white-space:pre-wrap}
+.qv-choices{list-style:none;padding:0;margin:.5em 0;display:flex;flex-direction:column;gap:.3em}
+.qv-choices li{padding:.35em .6em;border:1px solid rgba(127,127,127,.25);border-radius:8px}
+.qv-choices li.gold{border-color:var(--ok-line);background:rgba(46,125,91,.12)}
+.qv-choices li .k{font-weight:700;margin-right:.5em}
+.qv-ans{width:100%;border-collapse:collapse;margin:.5em 0;font-size:.92rem}
+.qv-ans th,.qv-ans td{padding:.4em .6em;border-bottom:1px solid rgba(127,127,127,.2);text-align:left}
+.qv-review{background:rgba(127,127,127,.06);border:1px solid rgba(127,127,127,.2);
+  border-radius:10px;padding:12px 14px;margin-top:1em}
+.qv-review .mg-row{display:flex;flex-wrap:wrap;gap:.5em;align-items:center}
+@media print{
+  #toptabs,.tabs,#ch-toolbar,.qv-close{display:none !important}
+  .qv-modal{position:static;background:none;padding:0}
+  body *{visibility:hidden}
+  #ch-out,#ch-out *,.qv-box,.qv-box *{visibility:visible}
+}
+
+/* 実効独立票タブ */
+#ev-configs{max-height:11em;overflow-y:auto;padding:.15em}
+#ev-configs .ev-n{opacity:.55;font-variant-numeric:tabular-nums}
+.ev-cards{display:flex;flex-wrap:wrap;gap:.8em;margin:.8em 0}
+.ev-card{flex:1 1 190px;padding:.7em .9em;border-radius:10px;background:rgba(60,182,191,.08)}
+.ev-big{font-size:1.9rem;font-weight:700;line-height:1.1}
+.ev-scroll{overflow-x:auto;max-width:100%}
+.ev-mat td{text-align:center;font-variant-numeric:tabular-nums}
+.ev-mat .ev-diag{opacity:.35}
+.ev-mat .ev-rowh{text-align:left;white-space:nowrap;font-weight:600;font-size:.82rem}
+.ev-rot{font-size:.78rem;white-space:nowrap}
+.ev-bar{height:.7em;border-radius:4px;background:rgba(60,182,191,.75)}
+.ev-caveat li{margin:.25em 0}
+
+/* 選抜バイアス診断タブ */
+.sb-verdict{padding:.7em .9em;border-radius:10px;margin:.8em 0;line-height:1.7}
+.sb-verdict.sb-warn{background:rgba(230,150,60,.14);border:1px solid rgba(230,150,60,.4)}
+.sb-verdict.sb-ok{background:rgba(60,182,191,.12);border:1px solid rgba(60,182,191,.4)}
+.sb-bar{height:.7em;border-radius:4px;background:rgba(60,182,191,.75)}
+.sb-caveat li{margin:.3em 0}
+#sb-configs{max-height:11em;overflow-y:auto;padding:.15em}
+.callout-warn{background:rgba(230,150,60,.14);border:1px solid rgba(230,150,60,.4);
+  border-radius:8px;padding:.55em .8em;margin:.5em 0;font-size:.86rem;line-height:1.7}
+.sb-link{margin-left:.4em;white-space:nowrap}
+
+/* リンク色: 既定の濃い青は暗い背景で判読できないため明示する（2026-07-28）。
+   警告枠（オレンジ系）の中では青系が沈むので暖色に切り替える。 */
+a{color:var(--accent)}
+a:hover{color:var(--accent-ink)}
+.callout-warn a,.sb-verdict a{color:var(--warn-ink);text-decoration:underline}
+.callout-warn a:hover,.sb-verdict a:hover{color:var(--warn-ink)}
+
+/* 概要タブ: 問題データの作り方 */
+.home-fmt h4{margin:1em 0 .35em;font-size:.92rem;color:var(--accent)}
+.home-code{background:var(--surface-3);border:1px solid var(--line);border-radius:8px;
+  padding:.7em .9em;overflow-x:auto;font-size:.8rem;line-height:1.6;margin:.3em 0;white-space:pre}
+.home-fmtnote li{margin:.3em 0}
+
+/* 概要タブ: 「問題データの作り方」を折りたたみに */
+.home-fmtbox{border:1px solid var(--line);border-radius:10px;padding:.6em .9em;margin:.8em 0;
+  background:rgba(127,127,127,.05)}
+.home-fmtbox>summary{cursor:pointer;font-size:.95rem;padding:.2em 0}
+.home-fmtbox>summary:hover{color:var(--accent)}
+.home-fmtbox[open]>summary{margin-bottom:.4em;border-bottom:1px solid var(--line);padding-bottom:.5em}
+
+/* タブのグループ見出し（並び順の意味づけ） */
+/* ⚠ .tabs は #vertabs（最新の成績のバージョン切替）でも使うので触らない。#toptabs だけ調整 */
+#toptabs{gap:6px;row-gap:7px;align-items:center}
+#toptabs .tabsep{flex:0 0 1px;align-self:stretch;background:var(--line);margin:2px 5px;opacity:.9}
+
+}
+
+/* 概要タブ: 用語解説の見出しと英語表記 */
+.term-h{margin:1.4em 0 .5em;font-size:.9rem;color:var(--accent);
+  border-bottom:1px solid var(--line);padding-bottom:.3em}
+.term-card .en{font-weight:400;font-size:.78rem;color:var(--muted);margin-left:.35em}
+
+/* 構成エディタ: ラベルと入力欄の間で折り返さないようにする（.stagerow が flex-wrap のため）。
+   ★ラベル(.lbl)の直後に来る input/select を、ラベルと同じ行に固定する。 */
+.stagerow{row-gap:8px}
+.stagerow .lbl{white-space:nowrap}
+.stagerow .lbl + input,
+.stagerow .lbl + select{margin-left:-2px}
+.stagerow .fld{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+
+/* 問題数が主要な集合の半分未満の構成＝比較・診断に向かない。選ぶ前に気づけるよう弱く見せる。
+   （正答率だけ見せていた頃、n=3 の断片が上位に並び「一番良い構成」と誤解される事故があった） */
+.chgrid label.weak { opacity: .55; }
+.chgrid label.weak .acc { text-decoration: line-through; }
+.chgrid .ev-n { color: var(--muted); font-size: .78rem; margin-left: .4em; }
+
+/* 環境チェック（はじめて動かす人向け）*/
+.sk-ok   { color: var(--ok, var(--ok)); font-weight: 700; margin: .4em 0 .6em; }
+.sk-ng   { color: var(--warn, var(--warn)); font-weight: 700; margin: .4em 0 .6em; }
+.sk-steps{ display: flex; flex-direction: column; gap: .4em; }
+.sk-step { display: flex; gap: .6em; align-items: flex-start;
+           border: 1px solid var(--line); border-radius: 8px; padding: .5em .7em; }
+.sk-step.on  .sk-mark { color: var(--ok, var(--ok)); }
+.sk-step.off .sk-mark { color: var(--warn, var(--warn)); }
+.sk-mark { font-weight: 700; font-size: 1.05rem; width: 1.2em; text-align: center; }
+.sk-body { flex: 1; }
+.sk-cmd  { display: flex; gap: .5em; align-items: center; margin-top: .35em; flex-wrap: wrap; }
+.sk-cmd code { background: rgba(60,182,191,.12); padding: .25em .6em; border-radius: 6px;
+               white-space: nowrap; }
+.sk-rec td, .sk-rec th { padding: .3em .5em; }
+
+/* タイトル行（配色の切替ボタンを右端に置く）*/
+.titlerow { display: flex; align-items: center; gap: .8em; }
+.titlerow h1 { flex: 1; }
+
+/* 個別実行の注意書き（モデルを自動で選んだ等）。結論より先に目に入る位置に出す。 */
+.dm-notice{background:var(--ok-bg);border:1px solid var(--ok-line);color:var(--ok-ink);
+  border-radius:8px;padding:8px 12px;margin:0 0 10px;font-size:.84rem;line-height:1.6}
+
+/* ★横に長い表は、画面からはみ出さずにその場で横スクロールさせる。
+   th,td が white-space:nowrap なので、列が増えると右端（version 列など）が
+   見切れて読めなくなっていた（Windows 実機検証 2026-08-10・ウルトラワイドでも同様）。 */
+#best-table,#cmp-table,#sig-table,#ens-table,#ch-out,#ev-out,#sb-out,#sk-out{
+  overflow-x:auto;max-width:100%}
+
+/* ★広い画面では本文の幅を広げる。1100px 固定だと 3440px 幅で画面の3割しか使わず、
+   横に長い表が収まらないのに左右が大きく空くという状態になっていた。 */
+@media (min-width:1500px){ .wrap{max-width:1400px} }
+@media (min-width:2000px){ .wrap{max-width:1750px} }
+
+/* 通信失敗の通知（画面上部に固定）。利用者が「固まった」と誤解しないための最後の砦。 */
+.net-error { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; display: none;
+             background: var(--bad-bg); color: var(--ink); border-bottom: 2px solid var(--bad);
+             padding: .8em 1.2em; line-height: 1.6; }
+.net-error button { margin-left: 1em; }
+
+
+/* ★選択件数の表示（2026-08-25）。可変長のテキストをボタンの前に置くと、
+   選ぶたびにボタンが左右に動いて押し間違える。独立した行に固定し、
+   min-height を確保して「未選択→選択中」で行が増減しないようにする。 */
+.selcount{font-size:.82rem;margin:.35em 0 .1em;min-height:1.25em;line-height:1.25em}
+
+/* ★選抜バイアスの表（2026-08-25）。数値セルは右揃えなのに見出しが左揃えで、
+   桁が縦に揃わず読みにくかった。見出しにも .num を付けたうえで、
+   数値は等幅にして桁位置を合わせる。棒グラフの列は幅を固定する。 */
+td.num, th.num{font-variant-numeric:tabular-nums}
+.sb-verdict + h3, .tbl-wrap + h3{margin-top:1.1em}
+th.barcol, td.barcol{width:22%;min-width:90px}
+.tbl-wrap table td:first-child, .tbl-wrap table th:first-child{padding-right:1.2em}
+
+/* ★選抜バイアスの3つの表を「同じ縦位置」に揃える（2026-08-25）。
+   表ごとに列幅が違うと、1・2・3 を続けて見たとき数値の縦線が合わずに散らかって見える。
+   列数が違う表1にはスペーサ列を入れ、全表を同じ5列グリッドに固定する。 */
+table.sbgrid{table-layout:fixed}
+table.sbgrid col.c1{width:30%}
+table.sbgrid col.c2{width:14%}
+table.sbgrid col.c3{width:16%}
+table.sbgrid col.c4{width:22%}
+table.sbgrid col.c5{width:18%}
+table.sbgrid td, table.sbgrid th{overflow:hidden;text-overflow:ellipsis}

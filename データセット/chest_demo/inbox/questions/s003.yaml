@@ -1,0 +1,18 @@
+q_id: s003
+question: |-
+  【ダミー問題3・画像3枚】
+  50歳代の男性。経時的な胸部単純X線写真3枚を示す。
+  誤っているのはどれか。1つ選べ。
+
+  a 陰影は経時的に増大している
+  b 心陰影は正常範囲である
+  c 肋骨横隔膜角は鋭である
+  d 縦隔偏位はない
+  e 明らかな骨破壊はない
+images:
+  - file: images/s003_img01.jpg
+    caption: "第1回 胸部X線"
+  - file: images/s003_img02.jpg
+    caption: "第2回 胸部X線"
+  - file: images/s003_img03.jpg
+    caption: "第3回 胸部X線"

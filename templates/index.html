@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Benchforge — ベンチマーク</title>
+  <!-- ★favicon を置かないとブラウザが /favicon.ico を取りに行き、コンソールに 404 が残る。
+       外部ファイルを増やさずデータ URI で埋める（配布物のファイル数を増やさない）。 -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%230e1726%27/%3E%3Crect x=%276%27 y=%2716%27 width=%274%27 height=%2710%27 fill=%27%234dd0e1%27/%3E%3Crect x=%2714%27 y=%2710%27 width=%274%27 height=%2716%27 fill=%27%234dd0e1%27/%3E%3Crect x=%2722%27 y=%276%27 width=%274%27 height=%2720%27 fill=%27%23b388ff%27/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/style.css?v={{ v }}">
+</head>
+<body>
+  <div class="wrap">
+    <div class="titlerow">
+      <h1>Benchforge</h1>
+      <!-- ★配色の切替。既定は OS 設定に従い、ここで選ぶとその選択が優先される（選択は端末に保存） -->
+      <button id="theme-btn" class="ghost" title="配色を切り替えます（明るい / 暗い / OSに合わせる）">配色</button>
+    </div>
+    <p class="sub">AI による試験問題の解答成績を閲覧・比較・分析するツール ・ <span id="meta"></span></p>
+
+    <div class="tabs" id="toptabs">
+      <button class="tab active" data-tab="home">概要</button>
+      <span class="tabsep" aria-hidden="true"></span>
+      <button class="tab" data-tab="best" title="見る">成績一覧</button>
+      <span class="tabsep" aria-hidden="true"></span>
+      <button class="tab" data-tab="compare" title="比べる・調べる">2構成の比較</button>
+      <button class="tab" data-tab="sig" title="比べる・調べる">有意差の判定</button>
+      <button class="tab" data-tab="ch" title="比べる・調べる">特性評価（弱点の分析）</button>
+      <button class="tab" data-tab="ensemble" title="比べる・調べる">合議の内訳</button>
+      <span class="tabsep" aria-hidden="true"></span>
+      <button class="tab" data-tab="selbias" title="成績を疑う">選抜バイアスの診断</button>
+      <button class="tab" data-tab="effvotes" title="成績を疑う（合議に何人分の独立した意見があるか）">意見の重なり</button>
+      <span class="tabsep" aria-hidden="true"></span>
+      <button class="tab" data-tab="demo" title="解かせる">個別実行</button>
+      <button class="tab" data-tab="editor" title="解かせる">構成の作成</button>
+      <button class="tab" data-tab="nightly" title="解かせる">まとめて実行</button>
+      <button class="tab" data-tab="run" title="解かせる">実行状況の監視</button>
+      <span class="tabsep" aria-hidden="true"></span>
+      <button class="tab" data-tab="manage" title="整える・まとめる">問題の管理</button>
+      <button class="tab" data-tab="summary" title="整える・まとめる">まとめの生成</button>
+      <button class="tab" data-tab="strategy" title="整える・まとめる">構成の提案</button>
+    </div>
+
+    <section id="pane-home" class="pane active">
+      <div class="home-hero">
+        <h2>本ツールについて</h2>
+        <p>本ツールは、<b>任意の試験問題</b>を <b>AI（人工知能）に解答させ、その成績を記録・比較・分析する</b>ためのものです。
+          単一の AI で解く方式と、複数の AI の解答を統合する方式を同じ土俵で比べ、
+          どの種類の問題が得意でどこに弱点があるかを調べられます。画像を含む問題にも対応しています。
+          AI やプログラムの専門知識がなくても、問題の登録から成績の比較まで行えるよう設計しています。</p>
+      </div>
+
+      <!-- ★はじめて動かす人の最初の一歩。開いた時点で自動診断し、足りないものをコマンド付きで案内する。 -->
+      <div class="cardbox" id="sk-card" style="border-color:var(--accent)">
+        <h3 style="margin-top:0">はじめに ─ 動かせる状態か確認する</h3>
+        <p class="note">AI を動かす部品（推論エンジン・モデル）が揃っているかを調べます。
+          足りないものは、そのまま実行できる形で表示します。<b>ここで何かが自動的に入ることはありません。</b></p>
+        <div class="stagerow"><button id="sk-run" class="primary">もう一度確認する</button></div>
+        <div id="sk-out"><div class="empty">確認しています…</div></div>
+      </div>
+
+      <h3>利用の流れ</h3>
+      <p class="note">問題を用意するところから、成績を報告するところまでの一連の流れです。</p>
+      <ol class="home-steps">
+        <li><b>問題を用意する</b> — 出題文・選択肢・正解、画像があれば画像ファイルを揃えます。採点のため<b>正解が分かっている問題</b>が必要です。</li>
+        <li><b>決められた形式に整える</b> — 下記「問題データの作り方」のとおり、1問につき YAML ファイル1つ（設問文・選択肢・画像の指定）と、全問分の正解一覧（CSV）を用意します。</li>
+        <li><b>置く</b> — このアプリのフォルダの中の <code>データセット/your_data/inbox/</code> に入れてください。
+          <b>設定ファイルをさわる必要はありません。</b>置いたものは、各タブの「問題セット」で
+          <code>your_data（あなたのデータ）</code> として選べるようになります。<br>
+          <span class="muted">別の場所に置きたい／複数のまとまりを使い分けたい場合は、
+          <code>データセット/</code> の下にフォルダを増やすか、<code>config.yaml</code> の
+          <code>results_dir</code> を書き換えてください（詳しくは README）。</span></li>
+        <li><b>解かせる</b> — 「<a href="#" data-go="demo">個別実行</a>」で1問解かせて様子を見ながら、「<a href="#" data-go="editor">構成の作成</a>」でモデルの設定や組み合わせを考え、「<a href="#" data-go="nightly">まとめて実行</a>」でまとめて実行します。進行は「<a href="#" data-go="run">実行状況の監視</a>」で確認できます。</li>
+        <li><b>見る</b> — 「<a href="#" data-go="best">成績一覧</a>」で各構成の正答率を確認します。
+          問題ごとの正誤や AI の生の出力まで展開できます。</li>
+        <li><b>比べる</b> — 「<a href="#" data-go="compare">2構成の比較</a>」で2つの方式を問題単位で突き合わせ、
+          「<a href="#" data-go="sig">有意差の判定</a>」でその差が実力差か偶然かを検定します。</li>
+        <li><b>掘り下げる</b> — 「<a href="#" data-go="ch">特性評価</a>」で誤答しやすい属性（領域・画像枚数など）を、
+          「<a href="#" data-go="ensemble">合議の内訳</a>」で合議に参加した個々の AI の正誤を調べます。</li>
+        <li><b>成績を疑う</b> — 「<a href="#" data-go="effvotes">意見の重なり</a>」で合議が頭打ちになる理由を、
+          「<a href="#" data-go="selbias">選抜バイアスの診断</a>」で最高成績が本物かを確かめます（下記の注意を参照）。</li>
+        <li><b>絞り込む</b> — 「<a href="#" data-go="manage">問題の管理</a>」で問題を眺め、印をつけ、注目したい問題だけを取り出して分析できます（例：画像1枚の問題だけ、特定領域だけ）。</li>
+        <li><b>まとめる</b> — 「<a href="#" data-go="summary">まとめの生成</a>」で報告用の要約を、
+          「<a href="#" data-go="strategy">構成の提案</a>」で次に試す方式の案を作成します。</li>
+      </ol>
+
+      <details class="home-fmtbox">
+        <summary><b>問題データの作り方</b>（クリックで開閉）</summary>
+        <p class="note" style="margin-bottom:.6em"><b>1問につき YAML ファイル1つ</b>と、<b>全問分の正解一覧 CSV 1つ</b>を、データセットのフォルダに置いてください（構成は下記）。<br>この YAML は表計算ソフトから作れます。画像を <code>questions/images/</code> に置き、Excel などで一覧（本文・選択肢・正解・画像のファイル名）を作って、<a href="#" data-go="manage">問題の管理</a> の「問題を取り込む」で読み込んでください。<span class="muted">Shift-JIS のままで読めます。</span></p>
+        
+        <div class="home-fmt">
+        <h4>フォルダの構成</h4>
+        <pre class="home-code">&lt;データセット名&gt;/
+  inbox/
+    answers.csv                       ← 正解の一覧
+    questions/s001.yaml               ← 問題（1問 = 1ファイル）
+    questions/images/s001_img01.jpg   ← 画像（あれば）
+  results/trials.jsonl                ← 解答結果（自動で書かれます）</pre>
+
+        <h4>問題ファイル（YAML）の書き方</h4>
+        <pre class="home-code">q_id: s001
+question: |-
+  70歳代の男性。健診の胸部単純X線写真を示す。
+  最も考えられる所見はどれか。1つ選べ。
+
+  a 正常
+  b 心拡大
+  c 肺門リンパ節腫大
+  d 胸水
+  e 気胸
+images:
+  - file: images/s001_img01.jpg
+    caption: "胸部単純X線写真（正面）"</pre>
+        <ul class="note home-fmtnote">
+          <li><b>選択肢は設問文の中に書きます</b>（<code>a </code> <code>b </code> … の形式）。項目を分ける必要はありません。</li>
+          <li><b>画像は任意</b>です。無い問題は <code>images:</code> ごと省略できます。複数枚なら <code>_img01</code> <code>_img02</code> … と続けます。</li>
+          <li><code>q_id</code> はファイル名・正解一覧と一致させます（重複しない名前なら何でも構いません）。</li>
+        </ul>
+
+        <h4>正解の一覧（answers.csv）</h4>
+        <pre class="home-code">q_id,answer
+s001,a
+s002,b
+s003,a</pre>
+        <p class="note">複数選択の問題は <code>s004,"a,c"</code> のように区切って記載します。</p>
+
+        <h4>AI の解答の受け取り方</h4>
+        <p class="note">AI には<b>最終行に <code>解答: a</code> の形式で答えるよう</b>指示しています（複数選択なら <code>解答: a,c</code>）。この決まりで解答を読み取って採点するため、「<a href="#" data-go="editor">構成の作成</a>」で指示文を自作する場合も<b>この形式で答えるよう書いてください</b>。</p>
+      </div>
+      </details>
+
+      <h3>★成績を読むときの2つの注意</h3>
+      <div class="callout-warn">
+        <b>1. 一番上の成績は、実力より高めに出ています。</b>
+        多数の構成を同じ問題群で試して最高値を採ると、たまたま成績の良く出た構成が選ばれやすいためです。
+        <b>1位の数値は「多数を試した中の最高値」として扱います。</b>
+        どの程度上振れしているかは「<a href="#" data-go="selbias">選抜バイアスの診断</a>」で測れます。
+      </div>
+      <div class="callout-warn">
+        <b>2. 同じ設定で実行し直しても、成績は数ポイント動きます。</b>
+        AI の性能が変わったのではなく計算機側の事情によるもので、乱数の種を固定しても解決しません。
+        <b>構成どうしを比較するときは、同じ時期にまとめて実行してください。</b>
+        <div id="run-variance" style="margin-top:.5em">
+        <details style="margin-top:.5em">
+          <summary><b>同じ設定でも結果がぶれる理由（仕組みと出典）</b></summary>
+          <div style="padding:.5em 0 .2em;line-height:1.75">
+            AI が答えを選ぶとき「毎回もっとも自信のある答えだけを選ぶ」設定（<b>温度 <code>temperature = 0</code></b>。貪欲法 / greedy decoding とも呼びます）にしても、出力は一定になりません。
+            <ul style="margin:.4em 0 .4em 1.2em">
+              <li><b>GPU の計算順序が、同時に処理している仕事の量によって変わる</b>ため、ごく小さな数値のずれが生じ、
+                それが積み重なって最終的な答えを反転させることがあります。ある大型 AI では同じ問題を 1000 回解かせて
+                <b>80 通りの異なる答え</b>が出たと報告されています
+                （Thinking Machines Lab,
+                <a href="https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/" target="_blank" rel="noopener">Defeating Nondeterminism in LLM Inference</a>）。</li>
+              <li>国際学会 NeurIPS 2025 で発表された研究では、<b>使用する GPU の台数や種類が違うだけで正答率が最大 9% 変動</b>し、
+                <b>乱数の種（seed。本ツールでは指定せず推論エンジンが内部生成します）を固定しても解決しない</b>ことが示されています
+                （Yuan ほか,
+                <a href="https://arxiv.org/abs/2506.09501" target="_blank" rel="noopener">Understanding and Mitigating Numerical Sources of Nondeterminism in LLM Inference</a>, arXiv:2506.09501）。</li>
+            <li>この現象は <b>nondeterminism in LLM inference</b>（推論の非決定性）、原因は <b>batch invariance</b>（バッチ不変性）の破れとして議論されています。</li>
+            </ul>
+            AI を圧縮（<b>量子化 / quantization</b>）して動かしている場合は、計算の精度がさらに粗くなるため<b>変動は大きくなります</b>。
+            <b>実務上の対処は「比較を同じ条件・近い時期の中で完結させる」ことです</b>（費用はかかりません）。
+            重要な結論を出す際は、同じ設定を複数回実行して幅を示すことも検討してください。
+          </div>
+        </details>
+        </div>
+      </div>
+
+      <h3>用語の解説</h3>
+      <p class="note">専門用語には<b>英語表記・正式名称</b>を併記しています（そのまま検索できます）。</p>
+
+      <h4 class="term-h">このツールの用語</h4>
+      <div class="home-terms">
+        <div class="term-card"><b>構成 <span class="en">plan / configuration</span></b><span>問題を解答するための方式一式。単一の AI の場合と、複数の AI の解答を統合する合議の場合があります。保存すると <code>plan</code> という名前の JSON になり、ファイル名や API では <code>plan</code>・個々の解き方は <code>config</code> と表記します。</span></div>
+        <div class="term-card"><b>合議 <span class="en">ensemble</span></b><span>複数の AI に解答させ、多数決または審査役の AI により最終決定する方式。複数の医師による合議に相当します。審査役方式は <span class="en">LLM-as-a-judge</span> と呼ばれます。</span></div>
+        <div class="term-card"><b>データセット <span class="en">dataset</span></b><span>問題の集合。異なるデータセットの成績やタグは混在させません（比較は同一データセット内で行います）。</span></div>
+        <div class="term-card"><b>問題グループ <span class="en">split</span></b><span><b>どの問題を解かせるか</b>を決める単位。「構成の作成」「まとめて実行」で選んでください。慣例として <code>dev</code>（構成の調整に使う）と <code>test</code>（最後まで取り置く）に分けます。<b>調整に使った問題で最終評価をすると成績は上振れします</b>（→<a href="#" data-go="selbias">選抜バイアスの診断</a>）。</span></div>
+        <div class="term-card"><b>タグ <span class="en">tag</span></b><span>問題に付ける標識。<b>解いた後の分析を切り分ける軸</b>です（部位・設問の型など）。問題グループが「解く前に決めるもの」なのに対し、タグは「解いた後に使うもの」で役割が違います。</span></div>
+        <div class="term-card"><b>棄権 <span class="en">abstention</span></b><span>AI が指定形式で解答を出せず、記号を抽出できなかった状態。誤答とは区別して集計します。</span></div>
+        <div class="term-card"><b>救済／破綻 <span class="en">rescue / break</span></b><span>基準の構成が誤答した問題を正答にできた数（救済）と、正答だったものを誤答にした数（破綻）。差し引きが成績の増減になります。</span></div>
+      </div>
+
+      <h4 class="term-h" id="naming-rule">名前の付け方（すべての画面に共通）</h4>
+      <p class="note">本ツールで入力する名前には<b>2種類あり、規則が違います</b>。
+        取り違えると保存が失敗したり、別の実験を上書きしたりするおそれがあります。</p>
+      <div class="home-terms">
+        <div class="term-card"><b>① ファイル名になる名前 → <span class="nm-ng">半角英数字のみ</span></b>
+          <span><b>プラン名 / 構成ID（config_id）/ データセット名 / プロンプトID</b> が該当します。
+          半角英数字・ハイフン(-)・アンダースコア(_) だけを使ってください。
+          <b>これらはそのまま保存ファイル名や集計表の見出し、画面アドレスの一部になる</b>ためです。
+          日本語や空白・記号を含む名前は保存時にエラーになります
+          （黙って別名で保存すると、異なる実験が同じファイルに衝突して<b>前の結果が消える</b>ため、
+          あえて弾いています）。例: <code>base_gemma</code> / <code>ensemble-judge</code> / <code>mc_v2</code></span></div>
+        <div class="term-card"><b>② 中身のラベルにすぎない名前 → <span class="nm-ok">日本語で構いません</span></b>
+          <span><b>タグ名 / 問題グループ名 / 説明文・メモ</b> が該当します。
+          これらはファイルの<b>中身</b>に文字列として保存されるだけなので、
+          <code>胸部</code> <code>造影あり</code> のように分かりやすい日本語を推奨します。</span></div>
+      </div>
+
+      <h4 class="term-h">AI の設定項目</h4>
+      <div class="home-terms">
+        <div class="term-card"><b>温度 <span class="en">temperature</span></b><span>次の語を選ぶときの確率分布の平坦さ。<b>0 なら毎回もっとも確率の高い語だけを選びます</b>（貪欲法 / <span class="en">greedy decoding</span>）。上げるほど低確率の語も選ばれ、同じ問題でも答えが揺れます。</span></div>
+        <div class="term-card"><b>top-k / top-p <span class="en">top-k sampling / nucleus sampling</span></b><span>次の語の候補をどこまで残すか。top-k は上位 k 個、top-p は累積確率 p までに絞ります。<b>⚠ 温度0では最上位に確定するため、いずれも効果がありません</b>。</span></div>
+        <div class="term-card"><b>思考モード <span class="en">thinking / chain-of-thought</span></b><span>解答の前に推論過程を書かせる設定。判定の精度が上がる一方、<b>思考が出力枠を消費する</b>ため出力上限（<span class="en">num_predict</span>）を広げないと解答が出ずに棄権になります。</span></div>
+        <div class="term-card"><b>文脈長 <span class="en">context length</span></b><span>モデルが一度に扱える入力＋出力の長さ（トークン数）。画像や長い指示文はここを消費します。</span></div>
+        <div class="term-card"><b>量子化 <span class="en">quantization</span></b><span>モデルの数値精度を落として省メモリ・高速化する手法。Q4 は4ビット相当。<b>精度が粗いほど実行ごとの変動が大きくなります</b>。</span></div>
+        <div class="term-card"><b>乱数の種 <span class="en">seed</span></b><span><b>本ツールでは指定しません</b>。生成のたびに推論エンジンが内部で自動生成する値です。⚠ 仮に固定しても出力の再現は保証されません（GPU の計算順序に由来する変動が残るため）。</span></div>
+      </div>
+
+      <h4 class="term-h">統計の用語（各解析タブで使用）</h4>
+      <div class="home-terms">
+        <div class="term-card"><b>正答率と95%信頼区間 <span class="en">Wilson score interval</span></b><span>正答の割合と、その推定の幅。比率の信頼区間として正規近似より小標本に強い <span class="en">Wilson</span> 法を用いています。</span></div>
+        <div class="term-card"><b>マクネマー検定 <span class="en">McNemar's test</span></b><span>2つの構成を<b>同じ問題で対にして</b>比べる検定。片方だけが正答した問題の数を二項検定します（正確検定＝<span class="en">exact binomial</span>）。対応のあるデータに用いる点が χ² 検定と異なります。</span></div>
+        <div class="term-card"><b>多重比較の補正 <span class="en">Holm–Bonferroni method</span></b><span>多数の比較を行うと偶然「差あり」が出るため、p 値を厳しくする手続き。<span class="en">family-wise error rate</span> を制御します。臨床研究の多重性調整と同じ考え方です。</span></div>
+        <div class="term-card"><b>ブートストラップ法 <span class="en">bootstrap (percentile method)</span></b><span>問題を復元抽出して計算をやり直す操作を繰り返し、推定値の幅や順位の安定性を求める方法。</span></div>
+        <div class="term-card"><b>誤り相関（φ係数） <span class="en">phi coefficient / Matthews correlation</span></b><span>2構成の「正誤の並び」の相関。二値データの Pearson 相関に相当します。1に近いほど同じ問題で一緒に間違えています。</span></div>
+        <div class="term-card"><b>実効独立票 <span class="en">effective sample size / design effect</span></b><span>誤りの重なりを考慮した実質的な独立意見の数。<code>k ÷ (1+(k−1)φ̄)</code>。クラスター無作為化試験のデザイン効果と同じ式です。</span></div>
+        <div class="term-card"><b>選抜バイアス <span class="en">winner's curse / selection bias</span></b><span>多数の候補から最良を選ぶと、その値が実力より高く出る現象。臨床試験で多数のサブグループから最も差の出たものだけを報告すると効果が誇張されるのと同じです。</span></div>
+        <div class="term-card"><b>実行ごとのばらつき <span class="en">nondeterminism in LLM inference</span></b><span>同一設定・同一問題でも実行のたびに成績が動くこと。GPU カーネルの <span class="en">batch invariance</span> の破れが主因とされます。</span></div>
+      </div>
+      <p class="note" style="margin-top:1.4em">※ 研究・教育目的のツールです。表示される正答率は臨床診断の正確性を意味しません。
+        現在の成績は開発用データに基づく暫定値です。</p>
+    </section>
+
+    <section id="pane-best" class="pane">
+      <div class="callout-warn">⚠ <b>上位の値は「多数を試した中の最高値」であり、実力より高めに出ています。</b>たまたま成績の良く出た構成が上位に来やすいためです。<b>1位の数値は「多数を試した中の最高値」として扱ってください。</b><br>また、<b>同じ設定でも実行のたびに成績は数ポイント動きます</b>。<b>比較は実行時期の近い構成どうしで行ってください</b>（設定の差か実行ごとのばらつきかを取り違えます）。<a href="#" class="sb-link">→ 選抜バイアスの診断でどの程度かを測る</a></div>
+      <p class="note">記録済みの全構成を正答率の降順で<b>すべて</b>一覧します。95%信頼区間は <b>Wilson score interval</b>（比率の信頼区間・小標本に強い）で算出しています。
+        見出しのクリックで並べ替え、行のクリックで問題別の正誤・解答内容を確認できます。</p>
+      <div id="best-table"></div>
+    </section>
+
+    <section id="pane-compare" class="pane">
+      <p class="note">2構成を<b>同じ問題で対にして</b>突き合わせ、いずれが優れるか・どの問題で正誤が反転したかを確認します。検定は <b>McNemar's test</b>（対応のある二値データ・正確二項検定）を用います
+        （少数例では、正答率の差よりも「反転」の観察が有効です）。<span id="cmp-meta"></span></p>
+      <div class="stagerow">
+        <span class="lbl">構成A</span><select id="cmp-a"></select>
+        <span class="lbl">構成B</span><select id="cmp-b"></select>
+        <button class="primary" id="cmp-go">比較</button>
+        <span id="cmp-status" class="status"></span>
+      </div>
+      <div id="cmp-warn" class="note"></div>
+      <div id="cmp-summary" class="cardbox" style="display:none"></div>
+      <div id="cmp-table"></div>
+    </section>
+
+    <section id="pane-ensemble" class="pane">
+      <p class="note">合議（<b>ensemble</b>）構成における<b>個々のモデルの正誤</b>を表示します。「救済（rescue）」は基準が誤答した問題を正答にできた数、「破綻（break）」はその逆です。
+        各モデルが問題ごとに正解／誤答したか、合議が「意見の割れを救済」したか「正解者を多数決で覆した」かを可視化します。
+        メンバー数の変化にも自動対応します（閲覧のみ）。<span id="ens-meta"></span></p>
+      <div class="stagerow">
+        <span class="lbl">アンサンブル構成</span><select id="ens-sel"></select>
+        <button class="primary" id="ens-go">解析</button>
+        <span id="ens-status" class="status"></span>
+      </div>
+      <div id="ens-summary" class="cardbox" style="display:none"></div>
+      <div id="ens-table"></div>
+    </section>
+
+    <section id="pane-nightly" class="pane">
+      <p class="note">保存した構成を選び、問題セットをまとめて解きます。
+        <b>予約（タイマー）は廃止しました</b>——OS をまたいで確実に動く方法が無く、必要なら OS 側の
+        スケジューラからこのアプリを起動してください。</p>
+      <div class="ed-grid">
+        <div class="ed-left">
+          <div class="cardbox">
+            <h3>① 対象データ <button class="mini" id="nt-reload-data">再取得</button></h3>
+            <label>問題セット <select id="nt-dataset"></select></label>
+            <label>問題グループ <select id="nt-split"></select></label>
+            <p class="note">問題グループを空欄にすると、その問題セットの全問を解きます。</p>
+          </div>
+          <div class="cardbox">
+            <h3>② 構成の選択 <button class="mini" id="nt-reload-plans">再取得</button></h3>
+            <div class="stagerow">
+              <select id="nt-plan-select"><option value="">（保存済みの構成を選択）</option></select>
+              <button class="mini" id="nt-load-plan">内容を表示</button>
+            </div>
+            <p class="note">「構成の作成」タブで保存したものが並びます。
+              <b>作った直後に出てこないときは「再取得」を押してください。</b><span id="nt-meta"></span></p>
+            <span id="nt-saved-msg" class="status"></span>
+          </div>
+          <div class="cardbox">
+            <h3>③ 実行 <span id="nt-rstatus" class="status">—</span></h3>
+            <p class="note">選んだ問題セットを、選んだ構成でまとめて解きます。
+              進行は「実行状況の監視」タブで見られます。
+              <b class="ng">⚠ 実行中は GPU を使います。ほかの生成機能は同時に使わないでください。</b></p>
+            <div class="stagerow">
+              <button class="primary" id="nt-run">この構成で実行する</button>
+              <button class="x" id="nt-stop">停止</button>
+              <button class="mini" id="nt-refresh">状態を更新</button>
+            </div>
+            <div class="stagerow">
+              <button id="nt-pause">一時停止</button>
+              <button id="nt-resume">再開</button>
+            </div>
+            <div id="nt-rmsg" class="note">—</div>
+          </div>
+        </div>
+        <div class="ed-right">
+          <div class="cardbox"><h3>選んだ構成の中身</h3><pre id="nt-plan" class="preview">（構成を選んで「内容を表示」）</pre></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pane-editor" class="pane">
+      <p class="note"><b>問題の解かせ方</b>をここで組み立てます。
+        どのモデルに、どんな順番で、どんな指示で解かせるか——これをまとめたものが「構成」（<span class="en">plan</span>）です。
+        1体で解かせる／2体に解かせて多数決／先に所見を書かせてから解かせる、といった作り分けができます。<br>
+        <b>名前は半角英数字で付けてください</b>（保存ファイル名と成績表の見出しになります。
+        タグ名や説明文は日本語で構いません）→<a href="#" data-tab="home" class="nm-link">名前の付け方</a><br>
+        モデルは、お使いの環境に入っているものから選べます。保存先はこのアプリの中で、元のデータは変更しません。
+        <span id="ed-meta"></span></p>
+
+      <div class="ed-grid">
+        <div class="ed-left">
+          <div class="cardbox">
+            <h3>保存済みの構成</h3>
+            <p class="note"><b>名前をクリックすると読み込めます。</b>読み込んで下で編集し、
+              名前を変えずに保存すれば上書き、名前を変えて保存すれば別の構成として増えます。</p>
+            <div id="ed-saved"></div>
+          </div>
+
+          <div class="cardbox">
+            <h3>新規作成 / 編集</h3>
+            <label>名前 <input id="ed-name" value="my_plan" placeholder="半角英数字"><span class="note" id="ed-name-hint" style="display:block;margin-top:2px"><b>半角英数字・ハイフン(-)・アンダースコア(_) で付けてください</b>（保存ファイル名になります。→<a href="#" data-tab="home" class="nm-link">名前の付け方</a>）</span></label>
+            <label>問題セット <select id="ed-dataset"></select></label>
+            <label>問題グループ <select id="ed-split"></select></label>
+          </div>
+
+          <div class="cardbox">
+            <h3>解き方（<span class="en">config</span>）<button id="ed-add-config" class="mini">+ 解き方を追加</button>
+              <button id="ed-reload-models" class="mini" title="ollama に登録されたモデル一覧を再取得します（新しく pull したモデルを反映）">モデル一覧を再取得</button></h3>
+            <details class="note ed-paramhelp">
+              <summary><b>パラメータの説明と空欄時の挙動</b>（クリックで開閉）</summary>
+              <ul>
+                <li><b>temperature</b>（構成ごと）— 生成のランダムさ。<code>0</code>=毎回同じ最有力候補を選ぶ（決定的・greedy）。
+                  <code>&gt;0</code>=確率的に揺らす（多様性が出る／同じ問題でも解答が変わりうる）。単発採点は <code>0</code>、
+                  複数サンプルで多数決（self-consistency）や多様性アンサンブルを狙うときだけ <code>0.3〜1.0</code> を使います。</li>
+                <li><b>top_k</b>（構成ごと・任意）— サンプリング候補を確率上位 k 個に絞る。
+                  <b>空欄＝モデル既定に委ねる</b>（保存 JSON にキーを書きません。gemma4 系の既定は 64）。</li>
+                <li><b>top_p</b>（構成ごと・任意）— 累積確率が p に達するまでの候補だけを使う（核サンプリング）。
+                  <b>空欄＝モデル既定に委ねる</b>（同上。gemma4 系の既定は 0.95）。</li>
+                <li><b class="ng">⚠ 重要</b> — <b>temperature が 0 のとき top_k / top_p は効きません</b>（最有力候補に確定するため）。
+                  これらを実際に効かせたい構成では <b>temperature を 0 より大きく</b>してください。</li>
+                <li><b>文脈長</b>（<code>num_ctx</code>・ステージごと）— モデルが一度に扱える入力＋出力の長さ（トークン数）。
+                  画像や長い指示文もここを消費します。<b>推奨 32768</b>（既定で入力済み）。
+                  短すぎると設問が切れ、長すぎるとメモリを圧迫します。迷ったら既定のままで構いません。</li>
+                <li><b>出力上限</b>（<code>num_predict</code>・ステージごと）— 1回の生成で出せる最大トークン数。<b>推奨 2048</b>（既定で入力済み）。
+                  <b>⚠ 思考モードを on にする場合は 6144 以上にしてください</b>。思考が出力枠を消費するため、
+                  2048 のままだと思考だけで枠を使い切り、解答が出ずに<b>棄権</b>になります（実測で確認済み）。</li>
+                <li><b>think</b>（ステージごと）— <code>default</code>=モデル既定／<code>false</code>=思考オフ（解答が「解答: X」に届かず棄権になるのを防ぐ既定推奨）／<code>true</code>=思考オン。</li>
+                <li><b>num_ctx</b>（ステージごと・任意）— コンテキスト長。<b>空欄＝モデル既定</b>。大きくすると VRAM を消費します。</li>
+              </ul>
+              <span class="muted">※ 空欄のパラメータは保存 JSON に書き出さず、実行時にモデル既定へ委ねます。</span>
+            </details>
+            <div id="ed-configs"></div>
+          </div>
+
+          <div class="cardbox">
+            <button id="ed-save" class="primary">保存</button>
+            <button id="ed-export">JSONをダウンロード</button>
+            <button id="ed-reset" title="編集中の内容を破棄して初期状態に戻す">最初の状態に戻す</button>
+            <span id="ed-status" class="status"></span>
+            <h3 style="margin-top:1em">保存される JSON</h3>
+            <pre id="ed-preview" class="preview"></pre>
+          </div>
+        </div>
+
+        <div class="ed-right">
+          <div class="cardbox">
+            <h3>プロンプト編集</h3>
+            <label>編集するプロンプト
+              <select id="pr-select"></select>
+            </label>
+            <div class="stagerow" style="margin:.2em 0 .8em"><button class="mini" id="pr-new">新規作成</button></div>
+            <label>名前 <input id="pr-id" placeholder="例: mc_v2（半角英数字）">
+              <span class="note" style="display:block;margin-top:2px">構成の各段で「どのプロンプトを使うか」を、この名前で指定します。
+                <b>読み込んだあと名前を変えて保存すると、元を残すか置き換えるかを確認します。</b></span></label>
+            <label>説明 <input id="pr-desc" placeholder="用途メモ"></label>
+            <label>system（役割指示）<textarea id="pr-system" rows="3"></textarea></label>
+            <label>user（本文・プレースホルダ可）<textarea id="pr-user" rows="8"></textarea></label>
+            <p class="note">プレースホルダ: <code>{question}</code> <code>{captions}</code> <code>{findings}</code> <code>{candidates}</code>（judge用）。
+              解答ステージ(direct_mc/reason)は末尾に「解答: X」を要求してください。</p>
+            <button class="primary" id="pr-save">プロンプト保存</button>
+            <span id="pr-status" class="status"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pane-demo" class="pane">
+      <p class="note">画像（任意枚数）・設問・選択肢を入力し、モデルの思考過程と最終解答をリアルタイムに表示します。
+        別途インストールした ollama の AI で実行します。<span id="dm-meta"></span></p>
+      <div class="demo-grid">
+        <div class="demo-left">
+          <div class="cardbox">
+            <h3>サンプル問題と構成を選ぶだけ</h3>
+            <label>サンプル問題
+              <span class="stagerow"><select id="dm-sample-name" title="サンプルを選択" style="max-width:18em"></select>
+              <button class="mini" id="dm-sample" title="選択したサンプルを読み込む">読込</button></span></label>
+            <label>構成（保存済み／成績上位から選ぶ）
+              <span class="stagerow"><select id="dm-config"></select>
+              <button class="mini" id="dm-config-reload" title="新しく入れたモデルと、保存した構成を読み直します">モデルと構成を再取得</button></span></label>
+            <p class="note">選んだ構成のモデル・プロンプト・パラメータで実行します（個別設定は不要）。
+              画像・問題文はサンプル読込で自動、または下で差し替え可。<span id="dm-cfgnote" class="muted"></span></p>
+            <label>画像（差し替え・任意） <input id="dm-images" type="file" accept="image/*" multiple autocomplete="off"></label>
+            <div id="dm-thumbs" class="thumbs"></div>
+            <label>問題文（サンプル読込で自動・編集可）
+              <textarea id="dm-question" rows="6" autocomplete="off" placeholder="サンプルを読み込むと自動で入ります。"></textarea></label>
+            <button class="primary" id="dm-run">実行</button>
+            <button id="dm-stop" disabled>停止</button>
+            <button id="dm-reset" title="入力と結果をクリアして初期状態に戻す">クリア</button>
+            <span id="dm-status" class="status"></span>
+          </div>
+        </div>
+        <div class="demo-right">
+          <div class="cardbox"><h3>処理の流れ</h3><div id="dm-arch" class="arch"></div></div>
+          <div class="cardbox"><h3>実行の様子（段ごとの思考と出力）</h3>
+            <div id="dm-notice" class="dm-notice" style="display:none"></div>
+            <div id="dm-stages"></div></div>
+          <div class="cardbox"><h3>最終解答</h3>
+            <div id="dm-gold" class="goldbox"></div>
+            <div id="dm-answer" class="answerbox"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pane-summary" class="pane">
+      <p class="note">これまでの成績に基づき、ollama の AI（LLM）が「まとめ（総論）」の文章を作成・更新します（本アプリ内に保存）。
+        ※本機能は AI を実行するため、相応の時間と計算資源を要します。<span id="sm-meta"></span></p>
+      <div class="stagerow">
+        <span class="lbl">期間</span>
+        <select id="sm-period"><option value="all">全体</option><option value="week">過去1週間</option><option value="month">過去1ヶ月</option></select>
+        <span class="lbl">生成モデル</span><select id="sm-model"></select>
+        <button class="primary" id="sm-gen">この期間で総論を生成（蓄積）</button>
+        <span id="sm-status" class="status"></span>
+      </div>
+      <div class="stagerow">
+        <span class="lbl">過去のまとめを参照</span><select id="sm-saved"></select>
+        <button id="sm-view">表示</button>
+        <button id="sm-to-strategy" title="このまとめを文脈にプラン提案タブへ">このまとめでプラン提案 →</button>
+      </div>
+      <div class="cardbox"><div id="sm-md" class="md">（未生成）</div></div>
+      <details class="cardbox"><summary>元データ（集計統計）</summary>
+        <pre id="sm-stats" class="preview"></pre></details>
+    </section>
+
+    <section id="pane-sig" class="pane">
+      <p class="note">同じデータセット内のすべての構成を、いちばん成績が良い構成と<b><b>McNemar's test</b>（対応のある二値データの検定）</b>（同じ問題で対応させて比べる検定）で比較し、順位付けします。
+        「トップが本当に有意に上か、どれとどれが差なし（誤差の範囲）か」が一覧で分かります。データセットは混ぜません。
+        <span id="sig-meta"></span></p>
+      <div class="stagerow">
+        <span class="lbl">データセット</span><select id="sig-version"></select>
+        <button id="sig-go" class="primary">マトリクス更新</button>
+        <span id="sig-status" class="status"></span>
+      </div>
+      <div id="sig-table"></div>
+    </section>
+
+    <section id="pane-selbias" class="pane">
+      <p class="note">多数の構成を同じ問題群で試し、<b>最も成績の良かったものを採用する</b>——という当たり前の手順には落とし穴があります。
+        たまたま成績の良く出た構成が選ばれやすいため、<b>選ばれたものの成績は実力より高く出ます</b>（<b>winner's curse</b> / <b>selection bias</b>。適応的に評価を繰り返す場合は <b>adaptive benchmarking</b> の文脈で論じられます）。
+        臨床試験で多数のサブグループを調べ、最も差の出たものだけを報告すると効果が誇張されるのと同じ現象です。
+        このタブは、<b>手元の最高成績が「本当に優れている」のか「たくさん試したから出た値」なのか</b>を判定します。すべて閲覧のみです（AI は実行しません）。</p>
+      <details class="note" style="margin:.6em 0">
+        <summary><b>診断の方法</b>（クリックで開閉）</summary>
+        <div style="padding:.5em 0 .2em">
+          <ol style="margin:.3em 0 .3em 1.2em">
+            <li><b>「たくさん試すと最高値は勝手に上がる」量を見積もる</b>：選んだ構成すべてが<b>同じ実力</b>だと仮定し、
+              成績のばらつきだけで最高値がどこまで届くかを計算します。実測の最高値がその範囲に収まっていれば、
+              「優れている証拠」とは言えません。</li>
+            <li><b>順位の安定性</b>：採点する問題を無作為に選び直す操作を繰り返し、そのたびに順位を付け直します。
+              本当に優れているなら何度やっても上位に来るはずで、順位が大きく動くなら「1位」は偶然です。</li>
+            <li><b>多重比較の補正</b>：多数を比べれば偶然「差がある」ものが必ず出ます。その分を差し引きます（<b>Holm–Bonferroni method</b>）。
+              臨床研究で複数項目を比較するときと同じ考え方です。</li>
+          </ol>
+          <p class="note" style="margin:.7em 0 0">
+            <b>出典</b>： Yang Xu, Jiefu Zhang, Haixiang Sun, Zihan Zhou, Tianyu Cao, Vaneet Aggarwal.
+            <i>Towards Reliable LLM Evaluation: Correcting the Winner's Curse in Adaptive Benchmarking.</i>
+            arXiv:2605.05973, 2026年5月.
+            <a href="https://arxiv.org/abs/2605.05973" target="_blank" rel="noopener">https://arxiv.org/abs/2605.05973</a><br>
+            同論文は「同じベンチマークで反復評価して勝者を選ぶと、その報告値は真の能力を系統的に過大評価する」と示し、
+            <b>選抜と最終評価には別のデータを使うこと</b>を勧めています。
+          </p>
+        </div>
+      </details>
+      <div class="stagerow" style="background:rgba(60,182,191,.08);padding:.5em .7em;border-radius:8px">
+        <span class="lbl">構成を選択（3つ以上）</span>
+        <button id="sb-all" class="ghost" title="最も多くの問題を解いている集合に揃えたうえで、正答率の上位10構成を選びます">主要な問題集合の上位10構成</button>
+        <button id="sb-same" class="ghost" title="構成を1つだけ選んでから押すと、それと「まったく同じ問題」を解いた構成をすべて選びます（問題数が同じでも中身が違えば選びません）">選択した構成と同じ問題の構成を選ぶ</button>
+        <button id="sb-clear" class="ghost">選択を解除</button>
+        <span class="lbl" style="margin-left:1em">基準構成</span>
+        <select id="sb-base"></select>
+      </div>
+      <!-- ★件数はボタンの「後ろ」に独立した行で出す。前に置くと文字数が変わるたびにボタンが動く。 -->
+      <div id="sb-count" class="muted selcount">未選択</div>
+      <div id="sb-configs" class="chgrid"></div>
+      <div class="stagerow" style="margin-top:.6em"><button id="sb-run" class="primary">診断する</button><button class="ghost" data-csv-from="sb-out" data-csv-name="選抜バイアスの診断">表をCSVで保存</button><span class="status"></span></div>
+      <div id="sb-out"><div class="empty">構成を3つ以上選び、「診断する」を押してください。</div></div>
+    </section>
+
+    <section id="pane-effvotes" class="pane">
+      <p class="note">複数の構成を組み合わせても、<b>同じ問題で揃って間違えるなら独立した意見は増えていません</b>。
+        このタブは構成どうしの「間違え方の似ぐあい」から、<b>実質的に何通りの独立した意見があるか</b>（実効独立票）を推定します。
+        たとえば 5 人の医師に依頼しても、全員が同じ症例で同じ誤りをするなら、実質的な意見数は 5 未満になります。
+        合議で成績が頭打ちになる理由や、構成をさらに追加する価値があるかの判断に用います。すべて閲覧のみです（AI は実行しません）。</p>
+      <details class="note" style="margin:.6em 0">
+        <summary><b>計算方法</b>（クリックで開閉）</summary>
+        <div style="padding:.5em 0 .2em">
+          <ol style="margin:.3em 0 .3em 1.2em">
+            <li>各構成について、問題ごとの<b>正解=0 / 不正解=1</b> の並びを作ります。</li>
+            <li>2構成ずつ、その並びの相関（φ 係数＝二値データの相関係数）を計算します。
+              φ=0 は独立、φ=1 は完全に同じ間違え方、負の値は互いに補い合う関係を表します。</li>
+            <li>全ペアの平均を φ̄ とし、<code>実効独立票 = k ÷ (1 + (k−1) × φ̄)</code> で求めます（k は構成数）。
+              これは「相関のある k 票と同じ不確かさになる、独立票の本数」という意味で、
+              臨床研究のクラスター無作為化試験で用いる<b>実効標本サイズ（effective sample size）</b>と同じ考え方で、<code>1+(k−1)φ̄</code> は<b>デザイン効果（design effect）</b>に当たります。</li>
+            <li>構成数を無限に増やしたときの上限は <code>1 ÷ φ̄</code> になります。
+              φ̄ が大きいほど、いくら構成を足しても超えられない天井が低くなります。</li>
+          </ol>
+          95% 信頼区間は、問題を復元抽出して計算をやり直す方法（<b>bootstrap・percentile method</b>・1000 回）で求めています。
+          <p class="note" style="margin:.7em 0 0">
+            <b>出典</b>： Guneet Kohli.
+            <i>Nine Judges, Two Effective Votes: Correlated Errors Undermine LLM Evaluation Panels.</i>
+            arXiv:2605.29800, 2026年5月28日.
+            <a href="https://arxiv.org/abs/2605.29800" target="_blank" rel="noopener">https://arxiv.org/abs/2605.29800</a><br>
+            上記の定義をそのまま用いています。同論文では 7 系統 9 モデルの審査役パネルについて
+            φ̄=0.391・実効独立票 2.18（名目の 24%）と報告されており、本ツールの計算式に同じ値を入れると
+            2.18 が再現されることを確認済みです（実装の妥当性検証）。
+          </p>
+        </div>
+      </details>
+      <div class="stagerow" style="background:rgba(60,182,191,.08);padding:.5em .7em;border-radius:8px">
+        <span class="lbl">構成を選択（2つ以上）</span>
+        <button id="ev-top" class="ghost" title="最も多くの問題を解いている集合に揃えたうえで、正答率の上位4構成を選びます">主要な問題集合の上位4構成</button>
+        <button id="ev-same" class="ghost" title="構成を1つだけ選んでから押すと、それと「まったく同じ問題」を解いた構成をすべて選びます（問題数が同じでも中身が違えば選びません）">選択した構成と同じ問題の構成を選ぶ</button>
+        <button id="ev-clear" class="ghost">選択を解除</button>
+        <span class="muted" style="font-size:.82rem;margin-left:auto">※共通して採点された問題のみで計算します</span>
+      </div>
+      <!-- ★件数はボタンの「後ろ」に独立した行で出す（ボタンが動かないように） -->
+      <div id="ev-count" class="muted selcount">未選択</div>
+      <div id="ev-configs" class="chgrid"></div>
+      <div class="stagerow" style="margin-top:.6em">
+        <button id="ev-run" class="primary">計算する</button>
+        <button class="ghost" data-csv-from="ev-out" data-csv-name="実効独立票">表をCSVで保存</button>
+        <span class="status"></span>
+      </div>
+      <div id="ev-out"><div class="empty">構成を2つ以上選び、「計算する」を押してください。</div></div>
+    </section>
+
+    <section id="pane-ch" class="pane">
+      <p class="note">構成を選択すると、<b>どの問題で誤答しやすいか</b>を分析します。
+        領域・画像枚数ごとの正答率、上位構成が<b>そろって誤答する難問</b>、
+        正解ラベルの疑わしい問題（成績の良い構成ほど別解を選ぶもの＝<b>point-biserial correlation</b> が負のもの）、および構成間の統計的差の有無（<b>McNemar's test</b> ＋ <b>Holm–Bonferroni</b> 補正）を確認できます。これは属性別の<b>サブグループ解析（subgroup analysis）</b>であり、⚠多数の切り口を見ると偶然の差が出るため、得られた知見は別の問題群で確認するまで確定としないでください。
+        同一問題が複数回解答されている場合は最新の結果を採用します。すべて閲覧のみです（AI は実行しません）。<span id="ch-meta"></span></p>
+      <div class="stagerow" style="background:rgba(60,182,191,.08);padding:.5em .7em;border-radius:8px">
+        <span class="lbl">データセット</span>
+        <select id="ch-dataset"></select>
+        <span class="muted" style="font-size:.82rem">※分析は当該データセット内でのみ有効です（他データセットとは混在しません）</span>
+      </div>
+      <div class="stagerow">
+        <span class="lbl">比較する構成</span>
+        <button id="ch-seltop" class="ghost">上位3構成を選択</button>
+        <button id="ch-clear" class="ghost">選択を解除</button>
+        <span class="lbl" style="margin-left:1em">基準構成</span><select id="ch-baseline"></select>
+      </div>
+      <div id="ch-configs" class="chgrid"></div>
+      <div class="stagerow" style="margin-top:.6em">
+        <button id="ch-sig" class="primary">有意差の判定</button>
+        <button id="ch-slices" class="primary">属性別の正答率</button>
+        <button id="ch-core" class="primary">全構成が誤答する難問</button>
+        <button id="ch-suspects" class="primary">正解ラベルの疑わしい問題</button>
+        <span id="ch-status" class="status"></span>
+      </div>
+      <div class="stagerow" id="ch-toolbar" style="display:none">
+        <button class="ghost" data-csv-from="ch-out" data-csv-name="特性評価">表をCSVで保存</button>
+        <button id="ch-print" class="ghost">印刷</button>
+        <span class="muted" style="font-size:.82rem">※ 問題番号をクリックすると、画像つきの詳細（各構成の解答・正解ラベルの確認）を表示します。</span>
+      </div>
+      <div id="ch-out"></div>
+    </section>
+
+    <section id="pane-manage" class="pane">
+      <p class="note">問題を<b>眺め</b>、<b>タグを付け</b>、<b>グループに分ける</b>ためのタブです。
+        <b>タグ</b>＝解いた後の分析を切り分ける軸。<b>問題グループ</b>＝解かせる範囲を決める単位。
+        作成内容はこのアプリの中にのみ保存され、元のデータは変更しません。<span id="mg-meta"></span></p>
+      <div class="stagerow" style="background:rgba(60,182,191,.08);padding:.5em .7em;border-radius:8px">
+        <span class="lbl">データセット</span>
+        <select id="mg-dataset"></select>
+        <span class="muted" style="font-size:.82rem">※タグ・グループは当該データセットに保存されます</span>
+      </div>
+
+      <details class="mg-section" id="mg-details">
+        <summary><b>問題の一覧</b> <span id="mg-qcount" class="muted"></span>
+          <span class="muted">（クリックで開閉）</span></summary>
+        <p class="mg-desc"><b>問題番号をクリックすると、画像つきで中身を確認できます。</b>
+          いま付いているタグ・グループ・確認状態も一緒に表示します。</p>
+        <div class="mg-row">
+          <input id="mg-filter" placeholder="絞り込み（問題番号・タグ名で検索）" style="width:18em">
+          <button id="mg-reload" class="ghost">再取得</button>
+          <a class="ghost" id="mg-dl-questions" href="/api/questions/export.csv">この一覧をCSVで取得</a>
+          <span id="mg-status" class="status"></span>
+        </div>
+        <div id="mg-list" class="note">（読み込み中…）</div>
+      </details>
+
+      <div class="mg-section">
+        <h3>問題を取り込む（Excel / CSV から）</h3>
+        <p class="mg-desc"><b>流れ</b>：① 画像を <code>questions/images/</code> に置く → ② 表計算ソフトで一覧を作る → ③ ここで取り込む → ④「構成の作成」で解かせる。<span class="muted">形式は「概要」の「問題データの作り方」に。</span></p>
+        <p class="mg-desc">表計算ソフトで作った一覧から、問題ファイルをまとめて作れます。<br>列は <code>q_id</code>（問題番号）／<code>question</code>（本文と選択肢）／<code>answer</code>（正解）が必須です。<br>画像がある問題は <code>画像1</code> の列に<b>ファイル名</b>（例 <code>s101_img01.jpg</code>）、<code>説明1</code> の列に<b>その画像のキャプション</b>（例「正面」「T2強調像」）を書いてください。キャプションは空欄で構いません。2枚目以降は <code>画像2</code>／<code>説明2</code> … と増やしてください。<span class="muted">「記入見本CSVを取得」を押すと、この形の見本が手に入ります。</span></p>
+        <div class="mg-row">
+          <a class="ghost" id="mg-imp-template" href="/api/questions/import_template.csv">記入見本CSVを取得</a>
+          <span class="filepick"><label class="ghost" for="mg-imp-file">CSVを選ぶ</label><input type="file" id="mg-imp-file" accept=".csv"><span class="filename" id="mg-imp-file-name">未選択</span></span>
+          <button id="mg-imp-run" class="ghost">この CSV を取り込む</button>
+          <label style="font-size:.85rem"><input type="checkbox" id="mg-imp-ow"> 同じ問題IDを上書きする</label>
+          <span id="mg-imp-status" class="status"></span>
+        </div>
+        <p class="mg-desc">Excel が保存する Shift-JIS でもそのまま読めます。
+          <b>同じ問題IDのファイルが既にある場合は、既定では上書きしません</b>（消えると困るため）。
+          取り込むと、この下の「問題の一覧」に出てきます。</p>
+        <div id="mg-imp-result" class="note"></div>
+      </div>
+
+      <div class="mg-section">
+        <h3>タグ（問題の目印）</h3>
+        <p class="mg-desc">例：「画像1枚」「所見あり」等。1問に複数付与でき、分析の軸として利用できます。</p>
+        <div class="mg-row"><span class="lbl">1件ずつ</span>
+          <input id="ch-tag-qid" class="w-qid" placeholder="問題番号 例 s001">
+          <input id="ch-tag-name" class="w-name" placeholder="タグ名 例 見直したい">
+          <button id="ch-tag-add" class="ghost">付与</button>
+          <button id="ch-tag-del" class="ghost">除去</button>
+        </div>
+        <div class="mg-row"><span class="lbl">まとめて</span>
+          <span class="filepick"><label class="ghost" for="ch-tag-file">CSVを選ぶ</label><input type="file" id="ch-tag-file" accept=".csv"><span class="filename" id="ch-tag-file-name">未選択</span></span>
+          <button id="ch-tag-import" class="ghost">CSVから取り込み</button>
+          <label class="muted" title="CSV を唯一の正とします。書き出した CSV を編集して戻すときはこちらを使ってください（直前の状態は .bak に退避します）"><input type="checkbox" id="ch-tag-replace"> CSVで置き換え（無い分は消す）</label>
+          <a id="ch-tag-cur" class="ghost" href="/api/tags/export.csv">いまのタグをCSVで取得</a>
+          <span id="ch-tag-status" class="status"></span>
+        </div>
+        <p class="mg-desc">CSV書式：1行目 <code>q_id,tag</code>／以降 <code>s001,画像1枚;見直したい</code>（タグは <code>;</code> や <code>,</code> で複数可）。<b>「いまのタグをCSVで取得」で落としたものを表計算ソフトで編集し、そのまま取り込み直せます。</b></p>
+        <div id="ch-tags" class="note"></div>
+      </div>
+
+      <div class="mg-section">
+        <h3>問題グループ</h3>
+        <p class="mg-desc"><b>どの問題を解かせるかを決める単位です。</b>「構成の作成」「まとめて実行」で選ぶと、そのグループの問題だけを解きます。<span class="muted">解いた後の分析を切り分けるときは<b>タグ</b>をお使いください。</span></p>
+        <p class="mg-desc">★<b>よく使う分け方</b>: <code>dev</code> … 構成をあれこれ試して調整するための問題。<code>test</code> … <b>最後の1回まで解かせない</b>取り置きの問題。<br>分けておくと、調整による上振れを避けられます（同じ問題で調整と最終評価をすると、実力より高く出ます）。→<a href="#" data-go="selbias">どのくらい上振れるかを測る</a></p>
+        <div class="mg-row"><span class="lbl">手入力</span>
+          <input id="ch-split-name" class="w-name" placeholder="グループ名 例 dev / test">
+          <button id="ch-split-save" class="ghost">保存</button>
+          <button id="ch-split-del" class="ghost">削除</button>
+        </div>
+        <textarea id="ch-split-qids" rows="2" placeholder="問題番号をカンマ/空白/改行で。例: s001, s002 s003" style="width:100%"></textarea>
+        <div class="mg-row"><span class="lbl">まとめて</span>
+          <span class="filepick"><label class="ghost" for="ch-split-file">CSVを選ぶ</label><input type="file" id="ch-split-file" accept=".csv"><span class="filename" id="ch-split-file-name">未選択</span></span>
+          <button id="ch-split-import" class="ghost">CSVから取り込み</button>
+          <label class="muted" title="CSV を唯一の正とします。書き出した CSV を編集して戻すときはこちらを使ってください（直前の状態は .bak に退避します）"><input type="checkbox" id="ch-split-replace"> CSVで置き換え（無い分は消す）</label>
+          <a id="ch-split-cur" class="ghost" href="/api/splits/export.csv">いまのグループをCSVで取得</a>
+          <span id="ch-split-status" class="status"></span>
+        </div>
+        <p class="mg-desc">CSV書式：1行目 <code>split,q_id</code>／以降 <code>dev,s001;s002</code>（複数行でまとめられます）。</p>
+        <div id="ch-splits" class="note"></div>
+        <pre id="ch-split-yaml" class="note" style="white-space:pre-wrap;display:none"></pre>
+      </div>
+    </section>
+
+    <section id="pane-strategy" class="pane">
+      <p class="note">成績とまとめを ollama の AI が読み取り、次に試行すべき構成を提案します。
+        良ければ保存します（「構成の作成」タブで開いて編集できます）。<span id="sg-meta"></span>
+        <b class="ng">⚠ 生成はGPUを使うので、夜間ランの実行中は避けてください。</b></p>
+      <div class="stagerow">
+        <span class="lbl">提案モデル</span><select id="sg-model"></select>
+        <span class="lbl">期間</span>
+        <select id="sg-period"><option value="all">全体</option><option value="week">過去1週間</option><option value="month">過去1ヶ月</option></select>
+        <span class="lbl">参照するまとめ</span><select id="sg-summary"></select>
+        <button class="primary" id="sg-gen">提案を生成</button>
+        <span id="sg-status" class="status"></span>
+      </div>
+      <label>方針メモ（任意・LLMに優先考慮させる指示。例: think=onを試したい / 多様性の高いアンサンブル）
+        <textarea id="sg-note" rows="2" placeholder="空欄でも可"></textarea></label>
+      <div class="cardbox"><h3>提案</h3><div id="sg-text" class="md">（未生成）</div></div>
+      <div class="cardbox" id="sg-planbox" style="display:none">
+        <h3>抽出されたプラン <span id="sg-planok" class="muted"></span></h3>
+        <pre id="sg-plan" class="preview"></pre>
+        <div class="stagerow">
+          <span class="lbl">保存名</span><input id="sg-name" placeholder="例: think_on_probe（半角英数字）" style="width:220px">
+          <button id="sg-save" class="primary" disabled>このプランを保存</button>
+          <span id="sg-saved" class="status"></span>
+        </div>
+      </div>
+      <details class="cardbox"><summary>LLM に渡す統計（コンテキスト）</summary>
+        <pre id="sg-stats" class="preview"></pre></details>
+    </section>
+
+    <section id="pane-run" class="pane">
+      <p class="note">実行中の状態とログをそのまま表示します（<b>閲覧のみ</b>＝本タブから実行の開始・停止はできません）。
+        <span id="run-meta"></span></p>
+      <div class="stagerow">
+        <span id="run-badge" class="status">—</span>
+        <label class="muted"><input type="checkbox" id="run-auto" checked> 自動更新(5秒)</label>
+        <button id="run-refresh">今すぐ更新</button>
+        <span class="muted">行数</span>
+        <select id="run-lines"><option>80</option><option>160</option><option>300</option><option>500</option></select>
+      </div>
+      <div class="cardbox"><pre id="run-log" class="preview" style="max-height:60vh;overflow:auto">読み込み中…</pre></div>
+    </section>
+
+    <p class="disclaimer">{{ disclaimer }}</p>
+  </div>
+
+  <div id="qv-modal" class="qv-modal" style="display:none">
+    <div class="qv-box">
+      <button id="qv-close" class="qv-close" title="閉じる">×</button>
+      <div id="qv-body"></div>
+    </div>
+  </div>
+
+  <script src="/static/neterror.js?v={{ v }}"></script>
+  <script src="/static/theme.js?v={{ v }}"></script>
+  <script src="/static/setupcheck.js?v={{ v }}"></script>
+  <script src="/static/app.js?v={{ v }}"></script>
+  <script src="/static/editor.js?v={{ v }}"></script>
+  <script src="/static/demo.js?v={{ v }}"></script>
+  <script src="/static/summary.js?v={{ v }}"></script>
+  <script src="/static/compare.js?v={{ v }}"></script>
+  <script src="/static/ensemble.js?v={{ v }}"></script>
+  <script src="/static/nightly.js?v={{ v }}"></script>
+  <script src="/static/sig.js?v={{ v }}"></script>
+  <script src="/static/characterize.js?v={{ v }}"></script>
+  <script src="/static/effvotes.js?v={{ v }}"></script>
+  <script src="/static/selbias.js?v={{ v }}"></script>
+  <script src="/static/strategy.js?v={{ v }}"></script>
+  <script src="/static/run.js?v={{ v }}"></script>
+  <script src="/static/csvdl.js?v={{ v }}"></script>
+  <script src="/static/qanswer.js?v={{ v }}"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# Benchforge コア依存（cross-OS: Windows / Mac / Linux）
+# これだけで動く: 結果ブラウザ / ペア比較・有意差(McNemar) / アンサンブル内訳 / スライス /
+#   プランエディタ / 期間まとめ / プラン提案 / 夜間ラン設定。
+# HTTP は標準ライブラリ(urllib)を使うため requests 等は不要。
+#
+# ※ モデル実演の aux(CLIP) を使う場合のみ requirements-clip.txt を追加（Linux/CUDA推奨）。
+# ※ ラン制御(起動/停止/タイマー)は systemd 前提＝Linux のみ（他OSでは設定生成まで）。
+fastapi==0.138.0
+uvicorn[standard]==0.49.0
+jinja2==3.1.6
+pydantic==2.13.4
+pyyaml==6.0.3

@@ -1,0 +1,3 @@
+{"config_id": "modelX", "q_id": "t01", "pred": ["b"], "gold": ["b"], "correct": true, "latency_sec": 15.0}
+{"config_id": "modelX", "q_id": "t02", "pred": ["a"], "gold": ["b"], "correct": false, "latency_sec": 44.0}
+{"config_id": "modelX", "q_id": "t03", "pred": ["c"], "gold": ["c"], "correct": true, "latency_sec": 30.0}

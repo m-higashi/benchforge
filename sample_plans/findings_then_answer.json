@@ -1,0 +1,30 @@
+{
+  "_sample": "所見を書いてから解く（2段）",
+  "_note": "先に画像の所見を文章にし、その所見を読んで解答します。手順を分けると当たることがあります。",
+  "split": "",
+  "max_configs": 1,
+  "configs": [
+    {
+      "config_id": "findings_then_answer",
+      "temperature": 0,
+      "stages": [
+        {
+          "type": "vision_findings",
+          "model": "",
+          "prompt_id": "findings",
+          "think": false,
+          "num_ctx": 32768,
+          "num_predict": 2048
+        },
+        {
+          "type": "reason",
+          "model": "",
+          "prompt_id": "reason",
+          "think": false,
+          "num_ctx": 32768,
+          "num_predict": 2048
+        }
+      ]
+    }
+  ]
+}

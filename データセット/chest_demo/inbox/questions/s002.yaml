@@ -1,0 +1,16 @@
+q_id: s002
+question: |-
+  【ダミー問題2・画像2枚】
+  60歳代の女性。胸部単純X線写真2方向を示す。
+  最も適切な次の検査はどれか。1つ選べ。
+
+  a 経過観察
+  b 胸部CT
+  c 気管支鏡
+  d 胸腔穿刺
+  e MRI
+images:
+  - file: images/s002_img01.jpg
+    caption: "胸部単純X線写真（正面）"
+  - file: images/s002_img02.jpg
+    caption: "胸部単純X線写真（側面）"

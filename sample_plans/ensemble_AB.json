@@ -1,0 +1,33 @@
+{
+  "_sample": "2体で解いて多数決（合議）",
+  "_note": "AI 2体が別々に解答し、多数決で最終解答を決めます。1体より安定することがあります。『モデル』欄を2つとも設定してから実行してください。",
+  "split": "",
+  "max_configs": 1,
+  "configs": [
+    {
+      "config_id": "ensemble_AB",
+      "temperature": 0,
+      "stages": [
+        {
+          "type": "direct_mc",
+          "model": "",
+          "prompt_id": "mc",
+          "think": false,
+          "num_ctx": 32768,
+          "num_predict": 2048
+        },
+        {
+          "type": "direct_mc",
+          "model": "",
+          "prompt_id": "mc",
+          "think": false,
+          "num_ctx": 32768,
+          "num_predict": 2048
+        },
+        {
+          "type": "vote"
+        }
+      ]
+    }
+  ]
+}

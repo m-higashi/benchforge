@@ -1,0 +1,15 @@
+q_id: t02
+question: |-
+  【ダミー問題・set2・画像2枚】
+  60歳代の女性。胸部CT2スライスを示す。次の対応で適切なのはどれか。1つ選べ。
+
+  a 経過観察
+  b PET-CT
+  c 生検
+  d 手術
+  e 抗菌薬投与
+images:
+  - file: images/t02_img01.jpg
+    caption: "胸部CT 上肺野"
+  - file: images/t02_img02.jpg
+    caption: "胸部CT 下肺野"

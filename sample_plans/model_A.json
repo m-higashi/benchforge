@@ -1,0 +1,22 @@
+{
+  "_sample": "1体で解く（最も単純）",
+  "_note": "AI 1体が画像と設問を見てそのまま解答します。まず動作確認に使ってください。『モデル』欄を、お使いの環境に入っているものに変えてから実行してください。",
+  "split": "",
+  "max_configs": 1,
+  "configs": [
+    {
+      "config_id": "model_A",
+      "temperature": 0,
+      "stages": [
+        {
+          "type": "direct_mc",
+          "model": "",
+          "prompt_id": "mc",
+          "think": false,
+          "num_ctx": 32768,
+          "num_predict": 2048
+        }
+      ]
+    }
+  ]
+}

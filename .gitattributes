@@ -1,0 +1,14 @@
+# 改行コードを固定する（Windows と往復しても壊れないように）
+* text=auto eol=lf
+# ★Windows 用スクリプトは正規化しない（-text）。
+#   `text eol=crlf` だとリポジトリ内は LF で保存され、**ZIP でダウンロードした人には LF で届く**。
+#   実機点検でこれを検出したため、変換せずそのまま（CRLF）配る方式にした。
+*.bat -text
+*.cmd -text
+*.ps1 -text
+*.sh  text eol=lf
+*.command text eol=lf
+# 画像は変換しない
+*.png binary
+*.jpg binary
+*.jpeg binary

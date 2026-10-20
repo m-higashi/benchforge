@@ -1,0 +1,28 @@
+# 仮想環境・キャッシュ
+.venv/
+__pycache__/
+*.pyc
+
+# ユーザ個別設定（config.example.yaml を雛形に各自作成）
+config.yaml
+
+# ユーザ生成データ（プラン/まとめ/提案/夜間設定）。同梱サンプルは data/samples を参照
+data/plans/
+data/summaries/
+data/strategy/
+data/nightly/
+
+# OS / エディタ
+.DS_Store
+Thumbs.db
+
+# 実行すると作られるもの（追跡しない）。★これが無いと、まとめて実行を1回するだけで
+# 作業ツリーが汚れ、次に git pull した利用者がローカル変更と衝突する
+data/prompts.json
+data/standalone_run.json
+data/tags/
+data/splits/
+data/review/
+verify_result.json
+データセット/*/results/raw/
+データセット/*/results/run_trial.log

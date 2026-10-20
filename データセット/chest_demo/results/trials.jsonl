@@ -1,0 +1,6 @@
+{"config_id": "model_A", "q_id": "s001", "pred": ["a"], "gold": ["a"], "correct": true, "latency_sec": 12.3}
+{"config_id": "model_A", "q_id": "s002", "pred": ["c"], "gold": ["b"], "correct": false, "latency_sec": 41.1}
+{"config_id": "model_A", "q_id": "s003", "pred": ["a"], "gold": ["a"], "correct": true, "latency_sec": 58.7}
+{"config_id": "ensemble_AB", "q_id": "s001", "pred": ["a"], "gold": ["a"], "correct": true, "latency_sec": 33.0}
+{"config_id": "ensemble_AB", "q_id": "s002", "pred": ["b"], "gold": ["b"], "correct": true, "latency_sec": 96.4}
+{"config_id": "ensemble_AB", "q_id": "s003", "pred": ["a"], "gold": ["a"], "correct": true, "latency_sec": 120.9}
